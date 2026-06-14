@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF">
+
+    <!-- Primary Web View for rendering the Stock Market Terminal -->
+    <WebView
+        android:id="@+id/webView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="visible" />
+
+    <!-- Progress Loader Spinner centered on screen -->
+    <LinearLayout
+        android:id="@+id/loaderLayout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="?android:attr/progressBarStyle"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:indeterminate="true"
+            android:indeterminateTint="#3B82F6" />
+
+        <TextView
+            android:id="@+id/loadingText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="માહિતી લોડ થઈ રહી છે...\nકૃપા કરીને રાહ જુઓ (Render starts in a moment)"
+            android:textColor="#4B5563"
+            android:textSize="14sp"
+            android:layout_marginHorizontal="20dp"
+            android:gravity="center"
+            android:textStyle="normal" />
+    </LinearLayout>
+
+</RelativeLayout>
