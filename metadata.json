@@ -1,0 +1,6 @@
+{
+  "name": "Claude Agent Chat",
+  "description": "Desktop Companion and Dispatch agent controller powered by Gemini 3.5 Flash and Gemini 3.1 Flash-Lite.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
