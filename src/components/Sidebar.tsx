@@ -15,6 +15,9 @@ interface SidebarProps {
   onOpenSettings: () => void;
   activeTab: 'chat' | 'stocks' | 'github';
   onChangeTab: (tab: 'chat' | 'stocks' | 'github') => void;
+  user: any;
+  onSignIn: () => void;
+  onSignOut: () => void;
 }
 
 export default function Sidebar({
@@ -30,6 +33,9 @@ export default function Sidebar({
   onOpenSettings,
   activeTab,
   onChangeTab,
+  user,
+  onSignIn,
+  onSignOut,
 }: SidebarProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [renameText, setRenameText] = useState('');
@@ -352,31 +358,73 @@ export default function Sidebar({
 
       {/* Bottom Profile tray */}
       <div className="p-3.5 border-t border-[#2E2B25] bg-[#1d1b19] shrink-0">
-        <div className="flex items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8.5 h-8.5 rounded-xl bg-amber-500 text-[#FCFBF9] flex items-center justify-center font-bold text-xs shadow-md border border-amber-400/20 shrink-0">
-              S
+        <div className="flex flex-col gap-2">
+          {!user ? (
+            <button
+              onClick={() => {
+                onSignIn();
+                playSound('/audio/glassy.ogg');
+              }}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-[#FCFBF9] rounded-xl font-bold text-xs transition-all cursor-pointer shadow-sm"
+              id="sidebar-signin-btn"
+            >
+              Connect Firebase Cloud
+            </button>
+          ) : null}
+
+          <div className="flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {user ? (
+                <>
+                  {user.photoURL ? (
+                    <img 
+                      src={user.photoURL} 
+                      alt={user.displayName || 'User'} 
+                      className="w-8.5 h-8.5 rounded-xl border border-[#2E2B25] object-cover shrink-0" 
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-8.5 h-8.5 rounded-xl bg-amber-500 text-[#FCFBF9] flex items-center justify-center font-bold text-xs shadow-md border border-amber-400/20 shrink-0">
+                      {user.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <span className="block text-xs font-semibold text-[#FCFBF9] truncate">
+                      {user.displayName || 'Google User'}
+                    </span>
+                    <span className="block text-[9px] text-[#999288] truncate font-mono">
+                      {user.email}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-8.5 h-8.5 rounded-xl bg-[#2E2B25] text-[#999288] flex items-center justify-center font-bold text-xs border border-[#403B31] shrink-0">
+                    S
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block text-xs font-semibold text-[#FCFBF9] truncate">
+                      Offline Mode
+                    </span>
+                    <span className="block text-[10px] text-[#999288] truncate font-mono">
+                      local storage profile
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
-            <div className="min-w-0">
-              <span className="block text-xs font-semibold text-[#FCFBF9] truncate">
-                Sahaj
-              </span>
-              <span className="block text-[10px] text-[#999288] truncate font-mono">
-                verified account
-              </span>
-            </div>
+            <button
+              onClick={() => {
+                onOpenSettings();
+                playSound('/audio/glassy.ogg');
+              }}
+              className="p-2 hover:bg-[#2E2B25] text-[#999288] hover:text-[#FCFBF9] rounded-xl transition-colors cursor-pointer shrink-0"
+              title="Account Preferences"
+              id="sidebar-settings-btn"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
           </div>
-          <button
-            onClick={() => {
-              onOpenSettings();
-              playSound('/audio/glassy.ogg');
-            }}
-            className="p-2 hover:bg-[#2E2B25] text-[#999288] hover:text-[#FCFBF9] rounded-xl transition-colors cursor-pointer shrink-0"
-            title="Account Preferences"
-            id="sidebar-settings-btn"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
         </div>
       </div>
     </div>

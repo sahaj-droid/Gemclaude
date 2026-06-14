@@ -6,8 +6,41 @@ import FinanceDashboard from './components/FinanceDashboard';
 import GithubWorkspace from './components/GithubWorkspace';
 import ImagenStudio from './components/ImagenStudio';
 import { ChatSession, Message, Attachment, ModelType } from './types';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  getDocs, 
+  onSnapshot, 
+  query, 
+  where, 
+  orderBy, 
+  writeBatch 
+} from 'firebase/firestore';
+import { 
+  onAuthStateChanged,
+  User
+} from 'firebase/auth';
+import { 
+  auth, 
+  db, 
+  googleProvider, 
+  signInWithPopup, 
+  signOut, 
+  hasValidConfig,
+  handleFirestoreError,
+  OperationType 
+} from './firebase';
 
 export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [activeSessionMessages, setActiveSessionMessages] = useState<Message[]>([]);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const [streamingText, setStreamingText] = useState<string>('');
+
   const [sessions, setSessions] = useState<ChatSession[]>(() => {
     const saved = localStorage.getItem('claude_chat_sessions');
     if (saved) {
@@ -79,10 +112,96 @@ export default function App() {
     window.dispatchEvent(new Event('claude_settings_updated'));
   }, [voiceEnabled]);
 
-  // Sync state to local storage
+  // Listen to Auth State Changes
   useEffect(() => {
-    localStorage.setItem('claude_chat_sessions', JSON.stringify(sessions));
-  }, [sessions]);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+      if (currentUser && currentUser.email) {
+        setUserEmail(currentUser.email);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // Sync state to local storage (only when offline/no authenticated user)
+  useEffect(() => {
+    if (!user) {
+      localStorage.setItem('claude_chat_sessions', JSON.stringify(sessions));
+    }
+  }, [sessions, user]);
+
+  useEffect(() => {
+    if (!user) {
+      const saved = localStorage.getItem('claude_chat_sessions');
+      if (saved) {
+        try {
+          setSessions(JSON.parse(saved));
+        } catch (e) {}
+      } else {
+        setSessions([]);
+      }
+      return;
+    }
+
+    const q = query(
+      collection(db, 'sessions'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const sessionsList: ChatSession[] = [];
+      snapshot.forEach((sessionDoc) => {
+        const data = sessionDoc.data();
+        sessionsList.push({
+          id: sessionDoc.id,
+          title: data.title || 'Untitled Chat',
+          messages: [],
+          model: data.model || 'gemini-3.5-flash',
+          createdAt: data.createdAt || Date.now(),
+          searchGrounding: data.searchGrounding || false,
+        });
+      });
+
+      setSessions(sessionsList);
+
+      // Reset activeSessionId if it's not valid anymore
+      if (activeSessionId && !sessionsList.some(s => s.id === activeSessionId)) {
+        if (sessionsList.length > 0) {
+          setActiveSessionId(sessionsList[0].id);
+        } else {
+          setActiveSessionId(null);
+        }
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'sessions');
+    });
+
+    return unsubscribe;
+  }, [user]);
+
+  // Subscribe to the active session's messages in real-time
+  useEffect(() => {
+    if (!user || !activeSessionId) {
+      setActiveSessionMessages([]);
+      return;
+    }
+
+    const msgsQuery = query(
+      collection(db, 'sessions', activeSessionId, 'messages'),
+      orderBy('timestamp', 'asc')
+    );
+
+    const unsubscribe = onSnapshot(msgsQuery, (snapshot) => {
+      const messages = snapshot.docs.map(doc => doc.data() as Message);
+      setActiveSessionMessages(messages);
+    }, (err) => {
+      console.error("Error loading messages: ", err);
+    });
+
+    return unsubscribe;
+  }, [user, activeSessionId]);
 
   useEffect(() => {
     if (activeSessionId) {
@@ -120,12 +239,26 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [sessions]);
 
-  // Handle active session calculation
+  // Handle active session calculation (including real-time streaming text overlays)
   const getActiveSession = (): ChatSession | null => {
-    return sessions.find(s => s.id === activeSessionId) || null;
+    const session = sessions.find(s => s.id === activeSessionId);
+    if (!session) return null;
+
+    let messages = session.messages;
+    if (user) {
+      messages = activeSessionMessages;
+    }
+
+    if (streamingMessageId) {
+      messages = messages.map(m =>
+        m.id === streamingMessageId ? { ...m, text: streamingText } : m
+      );
+    }
+
+    return { ...session, messages };
   };
 
-  const handleNewChat = () => {
+  const handleNewChat = async () => {
     const newSessionId = 'session-' + Math.random().toString(36).substring(7);
     const newSession: ChatSession = {
       id: newSessionId,
@@ -135,63 +268,129 @@ export default function App() {
       createdAt: Date.now(),
     };
 
-    setSessions(prev => [newSession, ...prev]);
+    if (user) {
+      try {
+        await setDoc(doc(db, 'sessions', newSessionId), {
+          id: newSessionId,
+          title: 'New Chat',
+          model: 'gemini-3.5-flash',
+          createdAt: Date.now(),
+          userId: user.uid,
+          searchGrounding: false,
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `sessions/${newSessionId}`);
+      }
+    } else {
+      setSessions(prev => [newSession, ...prev]);
+    }
     setActiveSessionId(newSessionId);
   };
 
-  const handleDeleteSession = (id: string) => {
-    setSessions(prev => {
-      const filtered = prev.filter(s => s.id !== id);
-      if (activeSessionId === id) {
-        if (filtered.length > 0) {
-          setActiveSessionId(filtered[0].id);
-        } else {
+  const handleDeleteSession = async (id: string) => {
+    if (user) {
+      try {
+        // Delete all messages subcollection items
+        const msgsRef = collection(db, 'sessions', id, 'messages');
+        const msgsSnap = await getDocs(msgsRef);
+        
+        const batch = writeBatch(db);
+        msgsSnap.docs.forEach((doc) => {
+          batch.delete(doc.ref);
+        });
+        
+        // Delete parent session
+        batch.delete(doc(db, 'sessions', id));
+        await batch.commit();
+
+        if (activeSessionId === id) {
           setActiveSessionId(null);
         }
+      } catch (err) {
+        handleFirestoreError(err, OperationType.DELETE, `sessions/${id}`);
       }
-      return filtered;
-    });
+    } else {
+      setSessions(prev => {
+        const filtered = prev.filter(s => s.id !== id);
+        if (activeSessionId === id) {
+          if (filtered.length > 0) {
+            setActiveSessionId(filtered[0].id);
+          } else {
+            setActiveSessionId(null);
+          }
+        }
+        return filtered;
+      });
+    }
   };
 
-  const handleRenameSession = (id: string, newTitle: string) => {
-    setSessions(prev =>
-      prev.map(s => (s.id === id ? { ...s, title: newTitle } : s))
-    );
+  const handleRenameSession = async (id: string, newTitle: string) => {
+    if (user) {
+      try {
+        await updateDoc(doc(db, 'sessions', id), { title: newTitle });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, `sessions/${id}`);
+      }
+    } else {
+      setSessions(prev =>
+        prev.map(s => (s.id === id ? { ...s, title: newTitle } : s))
+      );
+    }
   };
 
-  const handleModelChangeOnActiveSession = (newModel: ModelType) => {
+  const handleModelChangeOnActiveSession = async (newModel: ModelType) => {
     if (!activeSessionId) return;
 
-    setSessions(prev =>
-      prev.map(s => (s.id === activeSessionId ? { ...s, model: newModel } : s))
-    );
+    if (user) {
+      try {
+        await updateDoc(doc(db, 'sessions', activeSessionId), { model: newModel });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, `sessions/${activeSessionId}`);
+      }
+    } else {
+      setSessions(prev =>
+        prev.map(s => (s.id === activeSessionId ? { ...s, model: newModel } : s))
+      );
+    }
     playSound('/audio/rounded.ogg');
   };
 
-  const handleToggleSearchGroundingOnActiveSession = () => {
+  const handleToggleSearchGroundingOnActiveSession = async () => {
     if (!activeSessionId) return;
 
-    setSessions(prev =>
-      prev.map(s => {
-        if (s.id === activeSessionId) {
-          const nextSearchGrounding = !s.searchGrounding;
-          let nextModel = s.model;
-          if (nextSearchGrounding) {
-            // Turning search grounding ON - shift to a grounding-specific model if currently standard
-            if (s.model === 'gemini-3.5-flash' || s.model === 'gemini-3.1-flash-lite') {
-              nextModel = 'models/gemini-2.5-flash-lite';
-            }
-          } else {
-            // Turning search grounding OFF - revert back to a standard chat model
-            if (s.model !== 'gemini-3.5-flash' && s.model !== 'gemini-3.1-flash-lite') {
-              nextModel = 'gemini-3.5-flash';
-            }
-          }
-          return { ...s, searchGrounding: nextSearchGrounding, model: nextModel };
-        }
-        return s;
-      })
-    );
+    const currentSession = getActiveSession();
+    if (!currentSession) return;
+
+    const nextSearchGrounding = !currentSession.searchGrounding;
+    let nextModel = currentSession.model;
+    if (nextSearchGrounding) {
+      if (currentSession.model === 'gemini-3.5-flash' || currentSession.model === 'gemini-3.1-flash-lite') {
+        nextModel = 'models/gemini-2.5-flash-lite';
+      }
+    } else {
+      if (currentSession.model !== 'gemini-3.5-flash' && currentSession.model !== 'gemini-3.1-flash-lite') {
+        nextModel = 'gemini-3.5-flash';
+      }
+    }
+
+    if (user) {
+      try {
+        await updateDoc(doc(db, 'sessions', activeSessionId), {
+          searchGrounding: nextSearchGrounding,
+          model: nextModel
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, `sessions/${activeSessionId}`);
+      }
+    } else {
+      setSessions(prev =>
+        prev.map(s =>
+          s.id === activeSessionId
+            ? { ...s, searchGrounding: nextSearchGrounding, model: nextModel }
+            : s
+        )
+      );
+    }
     playSound('/audio/rounded.ogg');
   };
 
@@ -204,20 +403,35 @@ export default function App() {
     // Create a new session automatically if none are active
     if (!currentSessionId) {
       currentSessionId = 'session-' + Math.random().toString(36).substring(7);
-      const newSession: ChatSession = {
-        id: currentSessionId,
-        title: text.trim().slice(0, 36) || 'New Chat',
-        messages: [],
-        model: 'gemini-3.5-flash',
-        createdAt: Date.now(),
-      };
-      currentSessions = [newSession, ...currentSessions];
-      setSessions(currentSessions);
+      if (user) {
+        try {
+          await setDoc(doc(db, 'sessions', currentSessionId), {
+            id: currentSessionId,
+            title: text.trim().slice(0, 36) || 'New Chat',
+            model: 'gemini-3.5-flash',
+            createdAt: Date.now(),
+            userId: user.uid,
+            searchGrounding: false,
+          });
+        } catch (err) {
+          handleFirestoreError(err, OperationType.WRITE, `sessions/${currentSessionId}`);
+        }
+      } else {
+        const newSession: ChatSession = {
+          id: currentSessionId,
+          title: text.trim().slice(0, 36) || 'New Chat',
+          messages: [],
+          model: 'gemini-3.5-flash',
+          createdAt: Date.now(),
+        };
+        currentSessions = [newSession, ...currentSessions];
+        setSessions(currentSessions);
+      }
       setActiveSessionId(currentSessionId);
     }
 
     // Append the user message
-    const userMsgId = Math.random().toString(36).substring(7);
+    const userMsgId = 'msg-' + Math.random().toString(36).substring(7);
     const userMsg: Message = {
       id: userMsgId,
       role: 'user',
@@ -226,30 +440,48 @@ export default function App() {
       attachments: attachments,
     };
 
-    const targetSession = currentSessions.find(s => s.id === currentSessionId);
+    const targetSession = sessions.find(s => s.id === currentSessionId) || currentSessions.find(s => s.id === currentSessionId);
     if (!targetSession) return;
 
-    const isFirstUserMessage = targetSession.messages.length === 0;
-    const updatedMessages = [...targetSession.messages, userMsg];
+    const isFirstUserMessage = user 
+      ? activeSessionMessages.length === 0 
+      : targetSession.messages.length === 0;
 
-    // Update active session locally
-    setSessions(prev =>
-      prev.map(s =>
-        s.id === currentSessionId
-          ? {
-              ...s,
-              title: isFirstUserMessage ? text.trim().slice(0, 36) || 'New Chat' : s.title,
-              messages: updatedMessages,
-            }
-          : s
-      )
-    );
+    const updatedMessages = user 
+      ? [...activeSessionMessages, userMsg] 
+      : [...targetSession.messages, userMsg];
+
+    if (user) {
+      try {
+        await setDoc(doc(db, 'sessions', currentSessionId, 'messages', userMsgId), userMsg);
+        if (isFirstUserMessage) {
+          await updateDoc(doc(db, 'sessions', currentSessionId), {
+            title: text.trim().slice(0, 36) || 'New Chat'
+          });
+        }
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `sessions/${currentSessionId}/messages/${userMsgId}`);
+      }
+    } else {
+      // Update active session locally
+      setSessions(prev =>
+        prev.map(s =>
+          s.id === currentSessionId
+            ? {
+                ...s,
+                title: isFirstUserMessage ? text.trim().slice(0, 36) || 'New Chat' : s.title,
+                messages: updatedMessages,
+              }
+            : s
+        )
+      );
+    }
 
     setIsStreaming(true);
     playSound('/audio/user_input_end.ogg');
 
     // Append empty AI message placeholder
-    const aiMsgId = Math.random().toString(36).substring(7);
+    const aiMsgId = 'msg-' + Math.random().toString(36).substring(7);
     const aiMsg: Message = {
       id: aiMsgId,
       role: 'assistant',
@@ -257,16 +489,24 @@ export default function App() {
       timestamp: Date.now(),
     };
 
-    setSessions(prev =>
-      prev.map(s =>
-        s.id === currentSessionId
-          ? {
-              ...s,
-              messages: [...updatedMessages, aiMsg],
-            }
-          : s
-      )
-    );
+    if (user) {
+      try {
+        await setDoc(doc(db, 'sessions', currentSessionId, 'messages', aiMsgId), aiMsg);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `sessions/${currentSessionId}/messages/${aiMsgId}`);
+      }
+    } else {
+      setSessions(prev =>
+        prev.map(s =>
+          s.id === currentSessionId
+            ? {
+                ...s,
+                messages: [...updatedMessages, aiMsg],
+              }
+            : s
+        )
+      );
+    }
 
     let aiText = '';
     const accumulatedSources: { title: string; uri: string }[] = [];
@@ -278,6 +518,10 @@ export default function App() {
     }
     const controller = new AbortController();
     abortControllerRef.current = controller;
+
+    // Use overlay state during streaming so we don't spam Firestore updates
+    setStreamingMessageId(aiMsgId);
+    setStreamingText('');
 
     try {
       const response = await fetch('/api/chat', {
@@ -342,24 +586,28 @@ export default function App() {
 
                 if (parsed.text) {
                   aiText += parsed.text;
-                  setSessions(prev =>
-                    prev.map(s =>
-                      s.id === currentSessionId
-                        ? {
-                            ...s,
-                            messages: s.messages.map(m =>
-                              m.id === aiMsgId 
-                                ? { 
-                                    ...m, 
-                                    text: aiText,
-                                    groundingSources: accumulatedSources.length > 0 ? [...accumulatedSources] : m.groundingSources
-                                  } 
-                                : m
-                            ),
-                          }
-                        : s
-                    )
-                  );
+                  setStreamingText(aiText);
+
+                  if (!user) {
+                    setSessions(prev =>
+                      prev.map(s =>
+                        s.id === currentSessionId
+                          ? {
+                              ...s,
+                              messages: s.messages.map(m =>
+                                m.id === aiMsgId 
+                                  ? { 
+                                      ...m, 
+                                      text: aiText,
+                                      groundingSources: accumulatedSources.length > 0 ? [...accumulatedSources] : m.groundingSources
+                                    } 
+                                  : m
+                              ),
+                            }
+                          : s
+                      )
+                    );
+                  }
                 } else if (parsed.error) {
                   streamError = new Error(parsed.error);
                 }
@@ -378,6 +626,18 @@ export default function App() {
         throw streamError;
       }
 
+      // Finish streaming, persist final message to Firestore
+      if (user) {
+        try {
+          await updateDoc(doc(db, 'sessions', currentSessionId, 'messages', aiMsgId), {
+            text: aiText,
+            groundingSources: accumulatedSources
+          });
+        } catch (err) {
+          handleFirestoreError(err, OperationType.UPDATE, `sessions/${currentSessionId}/messages/${aiMsgId}`);
+        }
+      }
+
       playSound('/audio/rounded.ogg');
     } catch (err: any) {
       if (err.name === 'AbortError') {
@@ -387,21 +647,33 @@ export default function App() {
       console.error('[Gemini API Stream Error]:', err);
       const errText = err.message || 'An error occurred. Please check your internet connection or server configurations.';
 
-      setSessions(prev =>
-        prev.map(s =>
-          s.id === currentSessionId
-            ? {
-                ...s,
-                messages: s.messages.map(m =>
-                  m.id === aiMsgId ? { ...m, text: errText } : m
-                ),
-              }
-            : s
-        )
-      );
+      if (user) {
+        try {
+          await updateDoc(doc(db, 'sessions', currentSessionId, 'messages', aiMsgId), {
+            text: errText
+          });
+        } catch (dbErr) {
+          console.error("Failed to write error text to Firestore: ", dbErr);
+        }
+      } else {
+        setSessions(prev =>
+          prev.map(s =>
+            s.id === currentSessionId
+              ? {
+                  ...s,
+                  messages: s.messages.map(m =>
+                    m.id === aiMsgId ? { ...m, text: errText } : m
+                  ),
+                }
+              : s
+          )
+        );
+      }
       playSound('/audio/exit.ogg');
     } finally {
       setIsStreaming(false);
+      setStreamingMessageId(null);
+      setStreamingText('');
     }
   };
 
@@ -435,6 +707,24 @@ export default function App() {
     setActiveSessionId(null);
   };
 
+  const handleSignIn = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+      playSound('/audio/rounded.ogg');
+    } catch (err: any) {
+      console.error("Google Sign-In Error: ", err);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      playSound('/audio/exit.ogg');
+    } catch (err: any) {
+      console.error("Google Sign-Out Error: ", err);
+    }
+  };
+
   const activeSession = getActiveSession();
 
   return (
@@ -453,6 +743,9 @@ export default function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         activeTab={activeTab}
         onChangeTab={setActiveTab}
+        user={user}
+        onSignIn={handleSignIn}
+        onSignOut={handleSignOut}
       />
 
       {/* Conditional Workspace Core */}
@@ -501,6 +794,9 @@ export default function App() {
         userEmail={userEmail}
         setUserEmail={setUserEmail}
         onClearAllChats={handleClearAllChats}
+        user={user}
+        onSignIn={handleSignIn}
+        onSignOut={handleSignOut}
       />
     </div>
   );

@@ -1,0 +1,42 @@
+{
+  "entities": {
+    "ChatSession": {
+      "title": "ChatSession",
+      "description": "Represents an active AI Chat Session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "model": { "type": "string" },
+        "createdAt": { "type": "integer" },
+        "searchGrounding": { "type": "boolean" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "title", "model", "createdAt", "userId"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Represents an individual message in a Chat Session",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "assistant"] },
+        "text": { "type": "string" },
+        "timestamp": { "type": "integer" },
+        "attachments": { "type": "array" },
+        "groundingSources": { "type": "array" }
+      },
+      "required": ["id", "role", "text", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/sessions/{sessionId}": {
+      "schema": "ChatSession",
+      "description": "Top-level collection for chat sessions configured per authenticated user"
+    },
+    "/sessions/{sessionId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Sub-collection of messages belonging to a specific session"
+    }
+  }
+}

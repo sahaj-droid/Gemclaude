@@ -11,6 +11,9 @@ interface SettingsModalProps {
   userEmail: string;
   setUserEmail: (email: string) => void;
   onClearAllChats: () => void;
+  user: any;
+  onSignIn: () => void;
+  onSignOut: () => void;
 }
 
 export default function SettingsModal({
@@ -23,6 +26,9 @@ export default function SettingsModal({
   userEmail,
   setUserEmail,
   onClearAllChats,
+  user,
+  onSignIn,
+  onSignOut,
 }: SettingsModalProps) {
   const [emailInput, setEmailInput] = useState(userEmail);
   const [isSaved, setIsSaved] = useState(false);
@@ -103,15 +109,55 @@ export default function SettingsModal({
               <User className="w-3.5 h-3.5" />
               <span>User Profile</span>
             </h3>
-            <div className="flex items-center gap-3 bg-claude-card/55 p-3 rounded-xl border border-claude-border/50">
-              <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-xs border border-amber-400/20">
-                S
+            {user ? (
+              <div className="flex items-center justify-between gap-3 bg-claude-card/55 p-3 rounded-xl border border-claude-border/50">
+                <div className="flex items-center gap-3">
+                  {user.photoURL ? (
+                    <img 
+                      src={user.photoURL} 
+                      alt={user.displayName || 'User'} 
+                      className="w-9 h-9 rounded-xl border border-claude-border object-cover" 
+                      referrerPolicy="no-referrer" 
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-xs border border-amber-400/20">
+                      {user.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
+                  <div>
+                    <span className="block font-semibold text-xs text-claude-text">{user.displayName || 'Google User'}</span>
+                    <span className="block text-[10px] text-claude-secondary font-mono truncate max-w-[180px]">{user.email}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSignOut();
+                    playSound('/audio/exit.ogg');
+                  }}
+                  className="px-2.5 py-1.5 text-[10px] font-bold text-red-500 hover:text-white bg-red-500/10 hover:bg-red-650 rounded-lg transition-all cursor-pointer border border-red-500/20"
+                >
+                  Sign Out
+                </button>
               </div>
-              <div>
-                <span className="block font-semibold text-xs text-claude-text">Sahaj</span>
-                <span className="block text-[10px] text-claude-secondary">verified account</span>
+            ) : (
+              <div className="flex flex-col gap-2.5 bg-claude-card/55 p-3.5 rounded-xl border border-claude-border/50 text-center items-center">
+                <p className="text-[11px] text-claude-secondary leading-normal">
+                  Sign in with Google to synchronize all chats and file listings securely to your Firestore database.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSignIn();
+                    playSound('/audio/rounded.ogg');
+                  }}
+                  className="w-full py-2 bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-[#FCFBF9] rounded-xl font-bold text-xs transition-all cursor-pointer shadow-sm flex items-center justify-center gap-1.5"
+                  id="settings-google-signin-btn"
+                >
+                  <span>Connect Google / Firebase Account</span>
+                </button>
               </div>
-            </div>
+            )}
           </div>
 
           <hr className="border-claude-border" />
