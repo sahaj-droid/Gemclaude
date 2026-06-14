@@ -95,18 +95,48 @@ export default function ChatBox({
       };
 
       setSpeakingMessageId(messageId);
-      window.speechSynthesis.speak(utterance);
+
+      // Delay call to speak() after cancel() to ensure clean state change on mobile devices
+      setTimeout(() => {
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+          window.speechSynthesis.speak(utterance);
+        }
+      }, 100);
     } catch (e) {
       console.error("Speech synthesis failed: ", e);
       setSpeakingMessageId(null);
     }
   };
 
-  // Turn off speech on unmount
+  // Turn off speech on unmount & configure Mobile user gesture TTS activation
   useEffect(() => {
+    const unlockTTS = () => {
+      try {
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+          // Play an empty, zero-duration/silent speak request on user touch/click to unlock TTS engine
+          const emptyUtterance = new SpeechSynthesisUtterance('');
+          emptyUtterance.volume = 0;
+          window.speechSynthesis.speak(emptyUtterance);
+          
+          // Clear standard touch listeners once unlocked
+          window.removeEventListener('click', unlockTTS);
+          window.removeEventListener('touchstart', unlockTTS);
+        }
+      } catch (err) {
+        console.warn("Mobile speech activation skipped/failed:", err);
+      }
+    };
+
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.addEventListener('click', unlockTTS);
+      window.addEventListener('touchstart', unlockTTS);
+    }
+
     return () => {
       if (typeof window !== 'undefined' && window.speechSynthesis) {
         window.speechSynthesis.cancel();
+        window.removeEventListener('click', unlockTTS);
+        window.removeEventListener('touchstart', unlockTTS);
       }
     };
   }, []);
@@ -182,7 +212,13 @@ export default function ChatBox({
         const utterance = new SpeechSynthesisUtterance(cleanText);
         utterance.lang = 'en-US';
         utterance.rate = 1.0;
-        window.speechSynthesis.speak(utterance);
+        
+        // Delay speaking by 100ms after cancel() to guarantee state alignment on iOS/Android
+        setTimeout(() => {
+          if (typeof window !== 'undefined' && window.speechSynthesis && voiceEnabled && !isStreaming) {
+            window.speechSynthesis.speak(utterance);
+          }
+        }, 100);
       }
     }
   }, [messages, isStreaming, voiceEnabled]);
