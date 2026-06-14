@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.personal.stockterminal"
+    namespace = "com.myapp.gemclaude"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.personal.stockterminal"
+        applicationId = "com.myapp.gemclaude"
         minSdk = 30  // Android 11.0
         targetSdk = 34 // Android 14.0
         versionCode = 1

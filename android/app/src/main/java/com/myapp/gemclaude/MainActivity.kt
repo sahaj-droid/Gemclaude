@@ -1,4 +1,4 @@
-package com.personal.stockterminal
+package com.myapp.gemclaude
 
 import android.annotation.SuppressLint
 import android.app.Activity

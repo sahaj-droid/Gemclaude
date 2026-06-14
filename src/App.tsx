@@ -437,7 +437,7 @@ export default function App() {
   const activeSession = getActiveSession();
 
   return (
-    <div className="flex h-screen overflow-hidden bg-claude-bg text-claude-text" id="app-root-container">
+    <div className="flex h-[100dvh] overflow-hidden bg-claude-bg text-claude-text" id="app-root-container">
       {/* Sidebar Navigation */}
       <Sidebar
         sessions={sessions}
