@@ -52,15 +52,15 @@ function getFallbackQuote(symbolStr: string) {
   const hash = getDeterministicHash(symbol);
   
   const seeds: Record<string, { name: string; price: number; sector: string; industry: string; change: number; type?: string }> = {
-    '^NSEI': { name: 'Nifty 50', price: 23450.50, sector: 'Financials & Industry', industry: 'Index', change: 145.20, type: 'INDEX' },
-    '^BSESN': { name: 'BSE Sensex', price: 77150.20, sector: 'Financials & Industry', industry: 'Index', change: 420.30, type: 'INDEX' },
-    'RELIANCE.NS': { name: 'Reliance Industries Limited', price: 2485.60, sector: 'Energy', industry: 'Oil & Gas Refining', change: 12.80 },
-    'TCS.NS': { name: 'Tata Consultancy Services Limited', price: 3890.15, sector: 'Technology', industry: 'IT Services', change: -35.40 },
-    'TATAMOTORS.NS': { name: 'Tata Motors Limited', price: 945.30, sector: 'Consumer Cyclical', industry: 'Auto Manufacturers', change: 14.75 },
-    'HDFCBANK.NS': { name: 'HDFC Bank Limited', price: 1610.45, sector: 'Financial Services', industry: 'Banks - Regional', change: -8.10 },
-    'INFY.NS': { name: 'Infosys Limited', price: 1535.80, sector: 'Technology', industry: 'IT Services', change: 11.20 },
-    'SBIN.NS': { name: 'State Bank of India', price: 785.20, sector: 'Financial Services', industry: 'Banks - Regional', change: 3.40 },
-    'ITC.NS': { name: 'ITC Limited', price: 435.90, sector: 'Consumer Defensive', industry: 'Tobacco', change: -2.15 }
+    '^NSEI': { name: 'Nifty 50', price: 23622.90, sector: 'Financials & Industry', industry: 'Index', change: 461.30, type: 'INDEX' },
+    '^BSESN': { name: 'BSE Sensex', price: 75527.95, sector: 'Financials & Industry', industry: 'Index', change: 1695.45, type: 'INDEX' },
+    'RELIANCE.NS': { name: 'Reliance Industries Limited', price: 1296.40, sector: 'Energy', industry: 'Oil & Gas Refining', change: 33.40 },
+    'TCS.NS': { name: 'Tata Consultancy Services Limited', price: 2161.10, sector: 'Technology', industry: 'IT Services', change: 25.50 },
+    'TATAMOTORS.NS': { name: 'Tata Motors Limited', price: 924.50, sector: 'Consumer Cyclical', industry: 'Auto Manufacturers', change: 14.75 },
+    'HDFCBANK.NS': { name: 'HDFC Bank Limited', price: 771.95, sector: 'Financial Services', industry: 'Banks - Regional', change: 27.35 },
+    'INFY.NS': { name: 'Infosys Limited', price: 1118.50, sector: 'Technology', industry: 'IT Services', change: 3.90 },
+    'SBIN.NS': { name: 'State Bank of India', price: 1016.40, sector: 'Financial Services', industry: 'Banks - Regional', change: 15.70 },
+    'ITC.NS': { name: 'ITC Limited', price: 285.70, sector: 'Consumer Defensive', industry: 'Tobacco', change: 3.30 }
   };
 
   const seed = seeds[symbol] || {
