@@ -103,22 +103,15 @@ export default function SettingsModal({
               <User className="w-3.5 h-3.5" />
               <span>User Profile</span>
             </h3>
-            <form onSubmit={handleSaveEmail} className="flex gap-2">
-              <input
-                type="email"
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="yours@example.com"
-                className="flex-1 bg-white border border-claude-border rounded-xl px-3 py-2 text-xs focus:ring-1 focus:ring-amber-500 focus:border-amber-500 focus:outline-none"
-                id="settings-email-input"
-              />
-              <button
-                type="submit"
-                className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-medium text-xs rounded-xl cursor-pointer transition-colors shrink-0 shadow-sm flex items-center gap-1"
-              >
-                {isSaved ? <Check className="w-3.5 h-3.5" /> : 'Save'}
-              </button>
-            </form>
+            <div className="flex items-center gap-3 bg-claude-card/55 p-3 rounded-xl border border-claude-border/50">
+              <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-xs border border-amber-400/20">
+                S
+              </div>
+              <div>
+                <span className="block font-semibold text-xs text-claude-text">Sahaj</span>
+                <span className="block text-[10px] text-claude-secondary">verified account</span>
+              </div>
+            </div>
           </div>
 
           <hr className="border-claude-border" />

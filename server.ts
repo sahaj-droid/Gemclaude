@@ -919,6 +919,127 @@ Provide your detailed review in a clear, constructive, and highly elegant markdo
     }
   });
 
+  // 5. Image Generation & Imagen 3/4 Studio proxy endpoint
+  app.post('/api/image/generate', async (req, res) => {
+    const { prompt, refinedPrompt, model, aspectRatio, count } = req.body;
+    const currentApiKey = process.env.GEMINI_API_KEY;
+
+    try {
+      console.log(`[Image Generation API] Request for model: ${model}, aspect: ${aspectRatio}, count: ${count}`);
+
+      let imageUrls: string[] = [];
+
+      // If user selected pollinations/flux OR if GEMINI_API_KEY is not configured, we use the free Flux engine as fallback
+      if (model === 'pollinations-flux' || !currentApiKey) {
+        console.log(`[Image Generation API] Using free high-quality engine via pollinations.ai (Flux)`);
+        
+        let width = 1024;
+        let height = 1024;
+        if (aspectRatio === '16:9') { width = 1024; height = 576; }
+        else if (aspectRatio === '9:16') { width = 576; height = 1024; }
+        else if (aspectRatio === '4:3') { width = 1024; height = 768; }
+        else if (aspectRatio === '3:4') { width = 768; height = 1024; }
+
+        const randomSeed = Math.floor(Math.random() * 1000000);
+        const requestedCount = Math.max(1, Math.min(4, parseInt(count) || 1));
+        
+        for (let i = 0; i < requestedCount; i++) {
+          const seedValue = randomSeed + i;
+          // Build pollinations.ai URL
+          const pollinationsUrl = `https://pollinations.ai/p/${encodeURIComponent(refinedPrompt || prompt)}?width=${width}&height=${height}&seed=${seedValue}&nologo=true`;
+          
+          try {
+            console.log(`[Image Generation API] Fetching image from Pollinations: ${pollinationsUrl}`);
+            const imgResponse = await fetch(pollinationsUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+              }
+            });
+            
+            if (imgResponse.ok) {
+              const arrayBuffer = await imgResponse.arrayBuffer();
+              const base64Bytes = Buffer.from(arrayBuffer).toString('base64');
+              imageUrls.push(`data:image/jpeg;base64,${base64Bytes}`);
+            } else {
+              console.warn(`[Image Generation API] Pollinations fetch failed with status ${imgResponse.status}. Falling back to direct URL.`);
+              imageUrls.push(pollinationsUrl);
+            }
+          } catch (fetchErr) {
+            console.error(`[Image Generation API] Grab error from Pollinations, doing direct browser-link fallback:`, fetchErr);
+            imageUrls.push(pollinationsUrl);
+          }
+        }
+      } else {
+        const ai = new GoogleGenAI({
+          apiKey: currentApiKey,
+          httpOptions: {
+            headers: {
+              'User-Agent': 'aistudio-build',
+            },
+          },
+        });
+
+        if (model.startsWith('imagen-')) {
+          // Use modern generateImages method from @google/genai SDK for classic Imagen series
+          const response = await ai.models.generateImages({
+            model: model,
+            prompt: refinedPrompt || prompt,
+            config: {
+              numberOfImages: parseInt(count) || 1,
+              outputMimeType: 'image/jpeg',
+              aspectRatio: aspectRatio || '1:1',
+            }
+          });
+
+          if (response.generatedImages && response.generatedImages.length > 0) {
+            imageUrls = response.generatedImages.map((g: any) => {
+              const base64Bytes = g.image.imageBytes;
+              return `data:image/jpeg;base64,${base64Bytes}`;
+            });
+          }
+        } else {
+          // Core nano banana series (gemini-2.5-flash-image) uses generateContent as detailed in gemini-api guidelines
+          const response = await ai.models.generateContent({
+            model: model,
+            contents: [{ role: 'user', parts: [{ text: refinedPrompt || prompt }] }],
+            config: {
+              imageConfig: {
+                aspectRatio: aspectRatio || '1:1',
+                imageSize: "1K"
+              }
+            }
+          });
+
+          if (response.candidates?.[0]?.content?.parts) {
+            for (const part of response.candidates[0].content.parts) {
+              if (part.inlineData) {
+                const base64Bytes = part.inlineData.data;
+                const mime = part.inlineData.mimeType || 'image/png';
+                imageUrls.push(`data:${mime};base64,${base64Bytes}`);
+              }
+            }
+          }
+        }
+      }
+
+      if (imageUrls.length === 0) {
+        throw new Error('Image generation completed with no return data blocks. Free API keys may be restricted on this endpoint by Google.');
+      }
+
+      res.json({ images: imageUrls });
+    } catch (err: any) {
+      console.error('[Image Generation API Call Failed]:', err);
+      let errMsg = err.message || (typeof err === 'string' ? err : JSON.stringify(err));
+      
+      const isQuota = isQuotaOrRateLimit(errMsg, err.status);
+      if (isQuota) {
+        errMsg = `⚠️ **Gemini API / Imagen Key Quota Exceeded (429 Rate Limit)**: Media generation has hit rate limits on free-tier keys. Please try again after 60 seconds or link up a premium billing key in your Settings.`;
+      }
+      res.status(500).json({ error: errMsg });
+    }
+  });
+
   // Handle Vite in dev or serve build in prod
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

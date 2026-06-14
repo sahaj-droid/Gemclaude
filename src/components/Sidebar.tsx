@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageSquare, Plus, Trash2, PanelLeftClose, PanelLeft, Bot, MessageCircleCode, Check, Edit2, Settings, TrendingUp, X, Github } from 'lucide-react';
+import { MessageSquare, Plus, Trash2, PanelLeftClose, PanelLeft, Bot, MessageCircleCode, Check, Edit2, Settings, TrendingUp, X, Github, Sparkles } from 'lucide-react';
 import { ChatSession, ModelType } from '../types';
 
 interface SidebarProps {
@@ -204,6 +204,8 @@ export default function Sidebar({
             SYNC
           </span>
         </button>
+
+
       </div>
       <div className="p-3.5 shrink-0">
         <button
@@ -352,12 +354,12 @@ export default function Sidebar({
       <div className="p-3.5 border-t border-[#2E2B25] bg-[#1d1b19] shrink-0">
         <div className="flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8.5 h-8.5 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-xs shadow-md border border-amber-400/20 shrink-0">
-              {userEmail ? userEmail.charAt(0).toUpperCase() : 'S'}
+            <div className="w-8.5 h-8.5 rounded-xl bg-amber-500 text-[#FCFBF9] flex items-center justify-center font-bold text-xs shadow-md border border-amber-400/20 shrink-0">
+              S
             </div>
             <div className="min-w-0">
               <span className="block text-xs font-semibold text-[#FCFBF9] truncate">
-                {userEmail || 'Sahaj'}
+                Sahaj
               </span>
               <span className="block text-[10px] text-[#999288] truncate font-mono">
                 verified account

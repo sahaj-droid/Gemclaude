@@ -4,6 +4,7 @@ import ChatBox from './components/ChatBox';
 import SettingsModal from './components/SettingsModal';
 import FinanceDashboard from './components/FinanceDashboard';
 import GithubWorkspace from './components/GithubWorkspace';
+import ImagenStudio from './components/ImagenStudio';
 import { ChatSession, Message, Attachment, ModelType } from './types';
 
 export default function App() {

@@ -551,11 +551,11 @@ export default function ChatBox({
       <div className="flex-1 overflow-y-auto overflow-x-hidden w-full px-4 md:px-6 py-6" id="messages-scroller">
         {messages.length === 0 ? (
           /* Onboarding / Prompt suggestions */
-          <div className="max-w-2xl mx-auto py-12 md:py-20 flex flex-col justify-center min-h-full" id="intro-suggestions-banner">
-            <h1 className="text-3xl md:text-4xl font-serif font-medium tracking-tight text-claude-text mb-2 text-center">
+          <div className="max-w-2xl mx-auto py-6 md:py-10 flex flex-col justify-center min-h-full" id="intro-suggestions-banner">
+            <h1 className="text-3xl md:text-4xl font-serif font-medium tracking-tight text-claude-text mb-2 text-center animate-fade-in">
               {getGreeting()}
             </h1>
-            <p className="text-sm text-claude-secondary text-center max-w-md mx-auto leading-relaxed mb-12">
+            <p className="text-sm text-claude-secondary text-center max-w-md mx-auto leading-relaxed mb-6 md:mb-8">
               Select a suggestion or type below to start chatting with Claude.
             </p>
 
