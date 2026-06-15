@@ -562,8 +562,9 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
         <span className="font-semibold">AI code modifications applied to Editor! Click Commit below to load on GitHub.</span>
       </div>
 
-      {/* Top Section */}
-      <div className="h-16 border-b border-[#2E2B25] bg-[#191816]/70 px-4 md:px-6 flex items-center justify-between shrink-0">
+      {/* Top Section - ONLY VISIBLE WHEN IN ACTIVE WORKSPACE */}
+      {token && selectedRepo && (
+        <div className="h-16 border-b border-[#2E2B25] bg-[#191816]/70 px-4 md:px-6 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 md:gap-3">
           {onGoBackToChat && (
             <button
@@ -623,6 +624,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
           </div>
         )}
       </div>
+      )}
 
       {/* Mobile Tab Switcher Navigation */}
       {token && selectedRepo && (
@@ -685,8 +687,19 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
       {/* Main Workspace Body */}
       {!token ? (
         /* ── REDESIGNED CONNECT SCREEN ── */
-        <div className="flex-1 flex flex-col items-center justify-start overflow-y-auto bg-[#0D0D0F]">
+        <div className="flex-1 flex flex-col items-center justify-start overflow-y-auto bg-[#0D0D0F] relative">
           
+          {/* Back Button Overlay */}
+          {onGoBackToChat && (
+            <button
+              onClick={onGoBackToChat}
+              className="absolute top-4 left-4 z-10 p-2.5 bg-[#161B22]/80 hover:bg-[#21262D] backdrop-blur-md border border-[#30363D] text-[#8B949E] hover:text-white rounded-xl transition-all cursor-pointer shadow-lg"
+              title="Go back to Chat"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
+
           {/* Hero Banner */}
           <div className="w-full relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0D1117 0%, #161B22 40%, #1a0533 100%)' }}>
             <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, #7C3AED 0%, transparent 50%), radial-gradient(circle at 80% 20%, #2563EB 0%, transparent 50%)' }} />
@@ -836,9 +849,21 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
         <div className="flex-1 flex flex-col overflow-y-auto" style={{ background: '#0D0D0F' }}>
 
           {/* Header */}
-          <div className="px-4 pt-5 pb-4" style={{ background: 'linear-gradient(180deg, #161B22 0%, #0D0D0F 100%)', borderBottom: '1px solid #21262D' }}>
-            <div className="max-w-2xl mx-auto">
-              {/* User info row */}
+          <div className="px-4 pt-4 pb-4" style={{ background: 'linear-gradient(180deg, #161B22 0%, #0D0D0F 100%)', borderBottom: '1px solid #21262D' }}>
+            <div className="max-w-2xl mx-auto flex items-start gap-3">
+              {/* Back Button */}
+              {onGoBackToChat && (
+                <button
+                  onClick={onGoBackToChat}
+                  className="p-2.5 mt-1 shrink-0 bg-[#0D0D0F] hover:bg-[#21262D] border border-[#30363D] text-[#8B949E] hover:text-white rounded-xl transition-all cursor-pointer shadow-sm"
+                  title="Go back to Chat"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+              )}
+              
+              <div className="flex-1">
+                {/* User info row */}
               {user && (
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2.5">
