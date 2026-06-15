@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Paperclip, Send, Mic, X, Check, FileText, Image as ImageIcon, AlertCircle, Sparkles, BookOpen, PenTool, BarChart3, PanelLeft, Volume2, VolumeX, Headphones, Trash2, Settings, Copy, Globe } from 'lucide-react';
+import { Paperclip, Send, Mic, X, Check, FileText, Image as ImageIcon, AlertCircle, Sparkles, BookOpen, PenTool, BarChart3, PanelLeft, Volume2, VolumeX, Headphones, Trash2, Settings, Copy, Globe, Code, Lightbulb, Compass, MessageSquare } from 'lucide-react';
 import { Message, Attachment, ModelType } from '../types';
 import ModelSelector from './ModelSelector';
 import CodeBlock from './CodeBlock';
@@ -457,13 +457,26 @@ export default function ChatBox({
 
   const getGreeting = () => {
     const hours = new Date().getHours();
-    const name = userEmail ? userEmail.split('@')[0] : 'Sahaj';
-    const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
-    
-    if (hours < 12) return `Good morning, ${formattedName}`;
-    if (hours < 18) return `Good afternoon, ${formattedName}`;
-    return `Good evening, ${formattedName}`;
+    if (hours < 12) return `Good morning`;
+    if (hours < 18) return `Good afternoon`;
+    return `Good evening`;
   };
+
+  const ALL_SUGGESTIONS = useMemo(() => [
+    { icon: BookOpen, title: 'Explain concepts', text: 'Explain quantum computing in simple terms for a beginner.', color: 'text-amber-600 bg-amber-50 border-amber-100' },
+    { icon: PenTool, title: 'Draft or write', text: 'Write a persuasive email proposing a remote work schedule.', color: 'text-purple-600 bg-purple-50 border-purple-100' },
+    { icon: BarChart3, title: 'Analyze & solve', text: 'Calculate the return on investment for solar panels on a home.', color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+    { icon: Code, title: 'Code & Debug', text: 'Write a Python script to scrape data from a website.', color: 'text-blue-600 bg-blue-50 border-blue-100' },
+    { icon: Lightbulb, title: 'Brainstorm ideas', text: 'Give me 5 unique marketing ideas for a new coffee shop.', color: 'text-yellow-600 bg-yellow-50 border-yellow-100' },
+    { icon: Compass, title: 'Travel planning', text: 'Plan a 3-day itinerary for a trip to Tokyo.', color: 'text-rose-600 bg-rose-50 border-rose-100' },
+    { icon: MessageSquare, title: 'Interview prep', text: 'What are common behavioral interview questions?', color: 'text-cyan-600 bg-cyan-50 border-cyan-100' },
+    { icon: Sparkles, title: 'Creative writing', text: 'Write a short sci-fi story about a time traveler.', color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
+  ], []);
+
+  const currentSuggestions = useMemo(() => {
+    const shuffled = [...ALL_SUGGESTIONS].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 3);
+  }, [ALL_SUGGESTIONS]);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -515,7 +528,6 @@ export default function ChatBox({
             id="google-search-grounding-toggle"
           >
             <Globe className={`w-3.5 h-3.5 ${searchGrounding ? 'text-amber-600 animate-pulse' : 'text-claude-secondary'}`} />
-            <span>Search Grounding</span>
             <div className={`w-5.5 h-3 rounded-full p-0.5 transition-colors duration-200 ease-in-out flex items-center ${searchGrounding ? 'bg-amber-600' : 'bg-gray-300'}`}>
               <div className={`bg-white w-2 h-2 rounded-full shadow-xs transform duration-200 ease-in-out ${searchGrounding ? 'translate-x-2' : 'translate-x-0'}`} />
             </div>
@@ -560,26 +572,7 @@ export default function ChatBox({
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="intro-suggestions-grid">
-              {[
-                {
-                  icon: BookOpen,
-                  title: 'Explain concepts',
-                  text: 'Explain quantum computing in simple terms for a beginner.',
-                  color: 'text-amber-600 bg-amber-50 border-amber-100',
-                },
-                {
-                  icon: PenTool,
-                  title: 'Draft or write',
-                  text: 'Write a persuasive email proposing a remote work schedule.',
-                  color: 'text-purple-600 bg-purple-50 border-purple-100',
-                },
-                {
-                  icon: BarChart3,
-                  title: 'Analyze & solve',
-                  text: 'Calculate the return on investment for solar panels on a home.',
-                  color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
-                },
-              ].map((sug, idx) => {
+              {currentSuggestions.map((sug, idx) => {
                 const Icon = sug.icon;
                 return (
                   <button
