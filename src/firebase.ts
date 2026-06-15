@@ -1,17 +1,19 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-const firebaseConfig = { apiKey: '', authDomain: '', projectId: '', storageBucket: '', messagingSenderId: '', appId: '' };
+import firebaseConfig from '../firebase-applet-config.json';
 
 // Use env variables as override if present
 const metaEnv = (import.meta as any).env || {};
+const rawConfig = (firebaseConfig || {}) as any;
+
 const config = {
-  apiKey: metaEnv.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
-  authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfig.authDomain,
-  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId,
-  storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfig.storageBucket,
-  messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfig.messagingSenderId,
-  appId: metaEnv.VITE_FIREBASE_APP_ID || firebaseConfig.appId,
+  apiKey: metaEnv.VITE_FIREBASE_API_KEY || rawConfig.apiKey,
+  authDomain: metaEnv.VITE_FIREBASE_AUTH_DOMAIN || rawConfig.authDomain,
+  projectId: metaEnv.VITE_FIREBASE_PROJECT_ID || rawConfig.projectId,
+  storageBucket: metaEnv.VITE_FIREBASE_STORAGE_BUCKET || rawConfig.storageBucket,
+  messagingSenderId: metaEnv.VITE_FIREBASE_MESSAGING_SENDER_ID || rawConfig.messagingSenderId,
+  appId: metaEnv.VITE_FIREBASE_APP_ID || rawConfig.appId,
 };
 
 // Check if config has placeholder values or is missing
@@ -20,7 +22,11 @@ const hasValidConfig = !!(config.projectId && !config.projectId.includes('__') &
 const app = getApps().length === 0 ? initializeApp(config) : getApp();
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Use the explicit firestore database ID required for this applet
+const databaseId = metaEnv.VITE_FIREBASE_DATABASE_ID || rawConfig.firestoreDatabaseId;
+export const db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+
 export const googleProvider = new GoogleAuthProvider();
 
 export { signInWithPopup, signOut, hasValidConfig };

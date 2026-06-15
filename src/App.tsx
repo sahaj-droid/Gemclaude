@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { AlertCircle, ExternalLink, RefreshCw, X } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import ChatBox from './components/ChatBox';
 import SettingsModal from './components/SettingsModal';
@@ -40,6 +41,16 @@ export default function App() {
   const [activeSessionMessages, setActiveSessionMessages] = useState<Message[]>([]);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [streamingText, setStreamingText] = useState<string>('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [firestoreError, setFirestoreError] = useState<string | null>(null);
+
+  const onFirestoreError = (err: any, op: OperationType, path: string) => {
+    try {
+      handleFirestoreError(err, op, path);
+    } catch (e: any) {
+      setFirestoreError(e.message || String(e));
+    }
+  };
 
   const [sessions, setSessions] = useState<ChatSession[]>(() => {
     const saved = localStorage.getItem('claude_chat_sessions');
@@ -146,8 +157,7 @@ export default function App() {
 
     const q = query(
       collection(db, 'sessions'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -164,6 +174,9 @@ export default function App() {
         });
       });
 
+      // Sort client-side by createdAt descending to avoid composite index requirement
+      sessionsList.sort((a, b) => b.createdAt - a.createdAt);
+
       setSessions(sessionsList);
 
       // Reset activeSessionId if it's not valid anymore
@@ -175,7 +188,7 @@ export default function App() {
         }
       }
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'sessions');
+      onFirestoreError(error, OperationType.GET, 'sessions');
     });
 
     return unsubscribe;
@@ -279,7 +292,7 @@ export default function App() {
           searchGrounding: false,
         });
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `sessions/${newSessionId}`);
+        onFirestoreError(err, OperationType.WRITE, `sessions/${newSessionId}`);
       }
     } else {
       setSessions(prev => [newSession, ...prev]);
@@ -307,7 +320,7 @@ export default function App() {
           setActiveSessionId(null);
         }
       } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `sessions/${id}`);
+        onFirestoreError(err, OperationType.DELETE, `sessions/${id}`);
       }
     } else {
       setSessions(prev => {
@@ -329,7 +342,7 @@ export default function App() {
       try {
         await updateDoc(doc(db, 'sessions', id), { title: newTitle });
       } catch (err) {
-        handleFirestoreError(err, OperationType.UPDATE, `sessions/${id}`);
+        onFirestoreError(err, OperationType.UPDATE, `sessions/${id}`);
       }
     } else {
       setSessions(prev =>
@@ -345,7 +358,7 @@ export default function App() {
       try {
         await updateDoc(doc(db, 'sessions', activeSessionId), { model: newModel });
       } catch (err) {
-        handleFirestoreError(err, OperationType.UPDATE, `sessions/${activeSessionId}`);
+        onFirestoreError(err, OperationType.UPDATE, `sessions/${activeSessionId}`);
       }
     } else {
       setSessions(prev =>
@@ -380,7 +393,7 @@ export default function App() {
           model: nextModel
         });
       } catch (err) {
-        handleFirestoreError(err, OperationType.UPDATE, `sessions/${activeSessionId}`);
+        onFirestoreError(err, OperationType.UPDATE, `sessions/${activeSessionId}`);
       }
     } else {
       setSessions(prev =>
@@ -414,7 +427,7 @@ export default function App() {
             searchGrounding: false,
           });
         } catch (err) {
-          handleFirestoreError(err, OperationType.WRITE, `sessions/${currentSessionId}`);
+          onFirestoreError(err, OperationType.WRITE, `sessions/${currentSessionId}`);
         }
       } else {
         const newSession: ChatSession = {
@@ -460,7 +473,7 @@ export default function App() {
           });
         }
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `sessions/${currentSessionId}/messages/${userMsgId}`);
+        onFirestoreError(err, OperationType.WRITE, `sessions/${currentSessionId}/messages/${userMsgId}`);
       }
     } else {
       // Update active session locally
@@ -493,7 +506,7 @@ export default function App() {
       try {
         await setDoc(doc(db, 'sessions', currentSessionId, 'messages', aiMsgId), aiMsg);
       } catch (err) {
-        handleFirestoreError(err, OperationType.WRITE, `sessions/${currentSessionId}/messages/${aiMsgId}`);
+        onFirestoreError(err, OperationType.WRITE, `sessions/${currentSessionId}/messages/${aiMsgId}`);
       }
     } else {
       setSessions(prev =>
@@ -634,7 +647,7 @@ export default function App() {
             groundingSources: accumulatedSources
           });
         } catch (err) {
-          handleFirestoreError(err, OperationType.UPDATE, `sessions/${currentSessionId}/messages/${aiMsgId}`);
+          onFirestoreError(err, OperationType.UPDATE, `sessions/${currentSessionId}/messages/${aiMsgId}`);
         }
       }
 
@@ -709,10 +722,13 @@ export default function App() {
 
   const handleSignIn = async () => {
     try {
+      setAuthError(null);
+      setFirestoreError(null);
       await signInWithPopup(auth, googleProvider);
       playSound('/audio/rounded.ogg');
     } catch (err: any) {
       console.error("Google Sign-In Error: ", err);
+      setAuthError(err.message || String(err));
     }
   };
 
@@ -726,6 +742,33 @@ export default function App() {
   };
 
   const activeSession = getActiveSession();
+
+  // Extract index creation details if present
+  let simpleDbError = '';
+  let indexCreationUrl = '';
+  let isIndexErr = false;
+
+  if (firestoreError) {
+    try {
+      const idx = firestoreError.indexOf('{');
+      if (idx !== -1) {
+        const parsed = JSON.parse(firestoreError.substring(idx));
+        simpleDbError = parsed.error || '';
+      } else {
+        simpleDbError = firestoreError;
+      }
+    } catch (_) {
+      simpleDbError = firestoreError;
+    }
+
+    if (simpleDbError.toLowerCase().includes('index') && (simpleDbError.toLowerCase().includes('create it here') || simpleDbError.toLowerCase().includes('indexes?create_composite'))) {
+      isIndexErr = true;
+      const urlMatch = simpleDbError.match(/https?:\/\/[^\s",\\}]+/g);
+      if (urlMatch && urlMatch.length > 0) {
+        indexCreationUrl = urlMatch[0].trim();
+      }
+    }
+  }
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-claude-bg text-claude-text" id="app-root-container">
@@ -798,6 +841,290 @@ export default function App() {
         onSignIn={handleSignIn}
         onSignOut={handleSignOut}
       />
+
+      {/* Dynamic Authentication Troubleshooting Dialog */}
+      {authError && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-fade-in" id="auth-error-troubleshoot-modal">
+          <div className="bg-[#191816] border-2 border-amber-600/40 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[95vh] text-[#E6E1DA]" id="auth-error-card">
+            {/* Header */}
+            <div className="p-5 border-b border-[#2E2B25] flex items-start gap-4 bg-[#21201D]/55">
+              <span className="p-3 bg-red-950/40 border border-red-500/30 text-amber-500 rounded-2xl shadow-inner shrink-0 animate-pulse">
+                <AlertCircle className="w-6 h-6 text-amber-500" />
+              </span>
+              <div className="space-y-1">
+                <h2 className="font-serif font-black text-xl text-[#FCFBF9] tracking-tight leading-snug">
+                  Authentication Activation Required
+                </h2>
+                <span className="inline-block text-[10px] font-mono bg-red-900/20 border border-red-900/45 text-amber-500/90 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  Firebase Action Needed
+                </span>
+              </div>
+            </div>
+
+            {/* Error Message & Checklist */}
+            <div className="p-6 overflow-y-auto space-y-6 text-sm leading-relaxed">
+              <div className="bg-[#22201D] border border-[#2E2B25] p-4 rounded-xl space-y-2">
+                <span className="block text-xs font-bold font-mono text-[#999288] uppercase tracking-wider">
+                  Underlying Error Returned:
+                </span>
+                <p className="text-xs text-red-400 font-mono bg-black/40 p-2.5 rounded-lg border border-red-950/40 select-text overflow-x-auto whitespace-pre-wrap max-h-32">
+                  {authError}
+                </p>
+              </div>
+
+              {authError.includes('auth/configuration-not-found') ? (
+                <div className="space-y-4">
+                  <p className="text-xs text-[#999288]">
+                    This occurs because the <strong className="text-amber-500">Google Sign-In provider</strong> is disabled under Authentication settings in your Firebase project (<span className="text-[#FCFBF9] font-semibold">{auth.app.options.projectId || 'gemclaude-1'}</span>). Follow these simple steps to activate it:
+                  </p>
+
+                  <div className="space-y-3 font-medium text-xs">
+                    <div className="flex gap-3 items-start bg-white/5 p-3 rounded-xl border border-white/5">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 font-extrabold text-[11px] shrink-0 font-mono">1</span>
+                      <p className="text-[#E6E1DA] text-left leading-relaxed">
+                        Open the Firebase Authentication console for your project using this direct link:
+                        <a 
+                          href={`https://console.firebase.google.com/project/${auth.app.options.projectId || 'gemclaude-1'}/authentication/providers`}
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-bold text-[11px] hover:shadow-md transition-all self-start cursor-pointer no-underline"
+                        >
+                          <span>Open Firebase Console</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3 items-start bg-white/5 p-3 rounded-xl border border-white/5">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 font-extrabold text-[11px] shrink-0 font-mono">2</span>
+                      <p className="text-[#999288] text-xs text-left leading-normal">
+                        Click <strong className="text-[#FCFBF9]">Add new provider</strong> (or click Google if it shows in your lists) and click <strong className="text-[#FCFBF9]">Google</strong>.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3 items-start bg-white/5 p-3 rounded-xl border border-white/5">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 font-extrabold text-[11px] shrink-0 font-mono">3</span>
+                      <p className="text-[#999288] text-xs text-left leading-normal">
+                        Toggle the <strong className="text-[#FCFBF9]">Enable</strong> state, supply standard values for <strong className="text-[#FCFBF9]">Project support email</strong> and user configuration, then click <strong className="text-[#FCFBF9]">Save</strong>.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3 items-start bg-white/5 p-3 rounded-xl border border-white/5">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 font-extrabold text-[11px] shrink-0 font-mono">4</span>
+                      <p className="text-[#999288] text-xs text-left leading-normal">
+                        Once saved in your Firebase console, return here and retry connecting!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : authError.includes('auth/unauthorized-domain') ? (
+                <div className="space-y-4">
+                  <p className="text-xs text-[#999288]">
+                    This application's domain is not yet allowlisted in your Firebase Project (<span className="text-[#FCFBF9] font-semibold">{auth.app.options.projectId || 'gemclaude-1'}</span>). Firebase Auth blocks OAuth flow on unrecognized domains. Follow these steps to allowlist it:
+                  </p>
+
+                  <div className="space-y-3 font-medium text-xs">
+                    <div className="flex gap-3 items-start bg-white/5 p-3 rounded-xl border border-white/5">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 font-extrabold text-[11px] shrink-0 font-mono">1</span>
+                      <p className="text-[#E6E1DA] text-left leading-relaxed">
+                        Copy the current domain of this application:
+                        <code className="block mt-2 font-mono text-[11px] bg-black/50 text-amber-400 p-2 rounded-md border border-amber-900/30 select-all font-bold">
+                          {window.location.hostname}
+                        </code>
+                        {window.location.hostname.includes('ais-dev') && (
+                          <span className="block mt-2 text-[10px] text-[#999288]">
+                            Tip: You may also want to allowlist the production preview domain: <code className="text-amber-400 font-mono font-bold select-all">ais-pre-7yjlvk5g5wfn73pwq5xe2i-352564614585.asia-southeast1.run.app</code>
+                          </span>
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3 items-start bg-white/5 p-3 rounded-xl border border-white/5">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 font-extrabold text-[11px] shrink-0 font-mono">2</span>
+                      <p className="text-[#E6E1DA] text-left leading-relaxed">
+                        Open the Firebase Authentication Settings console:
+                        <a 
+                          href={`https://console.firebase.google.com/project/${auth.app.options.projectId || 'gemclaude-1'}/authentication/settings`}
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-bold text-[11px] hover:shadow-md transition-all self-start cursor-pointer no-underline"
+                        >
+                          <span>Open Auth Settings</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3 items-start bg-white/5 p-3 rounded-xl border border-white/5">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 font-extrabold text-[11px] shrink-0 font-mono">3</span>
+                      <p className="text-[#999288] text-xs text-left leading-normal">
+                        Under the <strong className="text-[#FCFBF9]">Authorized domains</strong> section, click <strong className="text-[#FCFBF9]">Add domain</strong>.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3 items-start bg-white/5 p-3 rounded-xl border border-white/5">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-md bg-amber-500/10 border border-amber-500/30 text-amber-500 font-extrabold text-[11px] shrink-0 font-mono">4</span>
+                      <p className="text-[#999288] text-xs text-left leading-normal">
+                        Paste the domain (e.g., <code className="text-[#FCFBF9] font-mono">{window.location.hostname}</code>) and click <strong className="text-[#FCFBF9]">Add</strong>. Once saved, return here and try logging in again!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-[#999288]">
+                    This could be due to a temporary network block, missing API access restrictions, or third-party cookies disabled within your iframe sandbox.
+                  </p>
+                  <p className="text-xs text-[#999288]">
+                    Consider logging in while running this application in a new, un-sandboxed tab, or check your console workspace.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Actions Footer */}
+            <div className="p-4 bg-[#21201D]/55 border-t border-[#2E2B25] flex items-center justify-between gap-3 shrink-0">
+              <button
+                onClick={() => setAuthError(null)}
+                className="px-4 py-2 hover:bg-[#2E2B25] border border-[#2E2B25] text-[#999288] hover:text-[#FCFBF9] text-xs font-semibold rounded-xl transition-all cursor-pointer"
+              >
+                Dismiss Mode
+              </button>
+              <button
+                onClick={() => {
+                  setAuthError(null);
+                  handleSignIn();
+                }}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5 cursor-pointer hover:scale-[1.02] active:scale-100 transition-all"
+                id="auth-error-retry-btn"
+              >
+                <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+                <span>Retry Connection</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dynamic Firestore Error Troubleshooting Dialog */}
+      {firestoreError && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-fade-in" id="firestore-error-troubleshoot-modal">
+          <div className="bg-[#191816] border-2 border-red-500/30 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col max-h-[95vh] text-[#E6E1DA]" id="firestore-error-card">
+            {/* Header */}
+            <div className="p-5 border-b border-[#2E2B25] flex items-start gap-4 bg-[#21201D]/55">
+              <span className="p-3 bg-red-950/40 border border-red-500/30 text-red-400 rounded-2xl shadow-inner shrink-0 animate-pulse">
+                <AlertCircle className="w-6 h-6" />
+              </span>
+              <div className="space-y-1">
+                <h2 className="font-serif font-black text-xl text-[#FCFBF9] tracking-tight leading-snug">
+                  {isIndexErr ? 'Composite Index Creation Required' : 'Database Connection Issue'}
+                </h2>
+                <span className="inline-block text-[10px] font-mono bg-red-900/20 border border-red-900/45 text-red-400 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                  Firestore Integration
+                </span>
+              </div>
+            </div>
+
+            {/* Error Message & Checklist */}
+            <div className="p-6 overflow-y-auto space-y-6 text-sm leading-relaxed">
+              <div className="bg-[#22201D] border border-[#2E2B25] p-4 rounded-xl space-y-2">
+                <span className="block text-xs font-bold font-mono text-[#999288] uppercase tracking-wider">
+                  Database Error Message:
+                </span>
+                <p className="text-xs text-red-400 font-mono bg-black/40 p-2.5 rounded-lg border border-red-950/40 select-text overflow-x-auto whitespace-pre-wrap max-h-32">
+                  {simpleDbError}
+                </p>
+              </div>
+
+              {isIndexErr ? (
+                <div className="space-y-4">
+                  <p className="text-xs text-[#999288]">
+                    This query filters on <code className="text-[#FCFBF9] font-mono px-1 py-0.5 bg-white/5 rounded">userId</code> and sorts by <code className="text-[#FCFBF9] font-mono px-1 py-0.5 bg-white/5 rounded">createdAt desc</code>. Firestore requires a composite index for this sorting pattern. You can create the index in seconds:
+                  </p>
+
+                  <div className="space-y-3 font-medium text-xs">
+                    <div className="flex gap-3 items-start bg-white/5 p-3 rounded-xl border border-white/5">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-md bg-red-500/10 border border-red-500/30 text-red-400 font-extrabold text-[11px] shrink-0 font-mono">1</span>
+                      <p className="text-[#E6E1DA] text-left leading-relaxed">
+                        To easily initialize this index on your Firebase Project (<span className="text-[#FCFBF9] font-semibold">{auth.app.options.projectId || 'gemclaude-1'}</span>), click the direct dashboard link below:
+                        {indexCreationUrl ? (
+                          <a 
+                            href={indexCreationUrl}
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-[11px] hover:shadow-md transition-all self-start cursor-pointer no-underline"
+                          >
+                            <span>Create Composite Index</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        ) : (
+                          <span className="block text-amber-500 font-bold mt-1">Please consult your Firebase Console Indexes section for sessions collection.</span>
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3 items-start bg-white/5 p-3 rounded-xl border border-white/5">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-md bg-red-500/10 border border-red-500/30 text-red-400 font-extrabold text-[11px] shrink-0 font-mono">2</span>
+                      <p className="text-[#999288] text-xs text-left leading-normal">
+                        Inside the Firebase console, review the settings and click <strong className="text-[#FCFBF9]">Create index</strong>.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3 items-start bg-white/5 p-3 rounded-xl border border-white/5">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-md bg-red-500/10 border border-red-500/30 text-red-400 font-extrabold text-[11px] shrink-0 font-mono">3</span>
+                      <p className="text-[#999288] text-xs text-left leading-normal">
+                        Wait 1 to 2 minutes for Firebase to complete building and deploying the index.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3 items-start bg-white/5 p-3 rounded-xl border border-white/5">
+                      <span className="flex items-center justify-center w-5 h-5 rounded-md bg-red-500/10 border border-red-500/30 text-red-400 font-extrabold text-[11px] shrink-0 font-mono">4</span>
+                      <p className="text-[#999288] text-xs text-left leading-normal">
+                        Once the status transitions to <strong className="text-green-500">Active</strong>, return to this tab and dismiss/retry.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-[#999288]">
+                    This database error may stem from a Firestore rules policy block, unrecognized references, or client permissions.
+                  </p>
+                  <p className="text-xs text-[#999288]">
+                    Ensure your database rules in <code className="text-[#FCFBF9] font-mono">firestore.rules</code> permit read/write access for your current user account, or click dismiss to fallback.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Actions Footer */}
+            <div className="p-4 bg-[#21201D]/55 border-t border-[#2E2B25] flex items-center justify-between gap-3 shrink-0">
+              <button
+                onClick={() => setFirestoreError(null)}
+                className="px-4 py-2 hover:bg-[#2E2B25] border border-[#2E2B25] text-[#999288] hover:text-[#FCFBF9] text-xs font-semibold rounded-xl transition-all cursor-pointer"
+              >
+                Dismiss & Use Offline Storage
+              </button>
+              <button
+                onClick={() => {
+                  setFirestoreError(null);
+                  // Refresh active user state to trigger re-fetch of sessions
+                  const current = auth.currentUser;
+                  if (current) {
+                    setUser(null);
+                    setTimeout(() => setUser(current), 50);
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5 cursor-pointer hover:scale-[1.02] active:scale-100 transition-all"
+                id="firestore-error-refresh-btn"
+              >
+                <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+                <span>Retry Loading State</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
