@@ -684,139 +684,153 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
 
       {/* Main Workspace Body */}
       {!token ? (
-        /* CONNECT SCREEN */
-        <div className="flex-1 flex flex-col items-center justify-start p-6 bg-gradient-to-br from-claude-bg to-[#121110] overflow-y-auto">
-          <div className="max-w-xl w-full bg-[#191816] border border-[#2E2B25] rounded-2xl shadow-xl p-8 text-center my-6" id="github-connect-card">
-            
-            <div className="w-16 h-16 rounded-full bg-violet-500/10 border border-violet-500/25 flex items-center justify-center text-violet-400 mx-auto mb-6">
-              <Github className="w-9 h-9" />
+        /* ── REDESIGNED CONNECT SCREEN ── */
+        <div className="flex-1 flex flex-col items-center justify-start overflow-y-auto bg-[#0D0D0F]">
+          
+          {/* Hero Banner */}
+          <div className="w-full relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0D1117 0%, #161B22 40%, #1a0533 100%)' }}>
+            <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, #7C3AED 0%, transparent 50%), radial-gradient(circle at 80% 20%, #2563EB 0%, transparent 50%)' }} />
+            <div className="relative max-w-2xl mx-auto px-6 py-10 text-center">
+              {/* Animated GitHub icon */}
+              <div className="w-20 h-20 rounded-2xl mx-auto mb-5 flex items-center justify-center relative" style={{ background: 'linear-gradient(135deg, #7C3AED22, #2563EB22)', border: '1px solid rgba(124,58,237,0.3)' }}>
+                <Github className="w-10 h-10 text-violet-400" />
+                <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#0D1117] flex items-center justify-center">
+                  <Sparkles className="w-2.5 h-2.5 text-white" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">
+                GitHub + Gemini AI
+              </h2>
+              <p className="text-sm text-[#8B949E] leading-relaxed max-w-md mx-auto">
+                Browse your repositories, review code with AI, and commit changes — all without leaving GemClaude.
+              </p>
+
+              {/* Feature pills */}
+              <div className="flex flex-wrap justify-center gap-2 mt-5">
+                {[
+                  { icon: '🗂️', label: 'Browse Files' },
+                  { icon: '🤖', label: 'AI Code Review' },
+                  { icon: '✏️', label: 'Edit & Commit' },
+                  { icon: '🔀', label: 'Pull Requests' },
+                ].map(f => (
+                  <span key={f.label} className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-[#C9D1D9]" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    {f.icon} {f.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Connect Card */}
+          <div className="w-full max-w-lg px-4 py-6 space-y-4" id="github-connect-card">
+
+            {/* Step-by-step guide */}
+            <div className="rounded-2xl overflow-hidden" style={{ background: '#161B22', border: '1px solid #30363D' }}>
+              <div className="px-5 py-4 border-b" style={{ borderColor: '#21262D' }}>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-[10px] font-bold text-violet-400">1</span>
+                  Get your GitHub Token
+                  <span className="ml-auto text-[10px] font-mono px-2 py-0.5 rounded-full text-amber-400" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)' }}>EASIEST</span>
+                </h3>
+              </div>
+              <div className="px-5 py-4 space-y-3">
+                <p className="text-xs text-[#8B949E] leading-relaxed">
+                  Generate a free Personal Access Token from GitHub. Takes only 1 minute.
+                </p>
+                <a
+                  href="https://github.com/settings/tokens/new?scopes=repo,read:user,user:email&description=GemClaude+AI+Workspace"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all cursor-pointer"
+                  style={{ background: 'linear-gradient(135deg, #238636, #2EA043)', border: '1px solid rgba(46,160,67,0.4)' }}
+                >
+                  <Github className="w-4 h-4" />
+                  Generate Token on GitHub ↗
+                </a>
+
+                {/* Minimal permission checklist */}
+                <div className="rounded-xl p-3 space-y-1.5" style={{ background: '#0D1117', border: '1px solid #21262D' }}>
+                  <p className="text-[10px] font-bold text-[#8B949E] uppercase tracking-wider mb-2">Required Permissions:</p>
+                  {[
+                    { scope: 'repo', desc: 'Read & write repositories' },
+                    { scope: 'read:user', desc: 'View your profile' },
+                    { scope: 'user:email', desc: 'Access email (optional)' },
+                  ].map(p => (
+                    <div key={p.scope} className="flex items-center gap-2 text-xs">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      <code className="text-violet-400 font-mono font-bold">{p.scope}</code>
+                      <span className="text-[#6E7681]">— {p.desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <h2 className="text-xl font-serif font-semibold text-[#FCFBF9] mb-3">
-              Enable Agentic GitHub Control
-            </h2>
-            
-            <p className="text-xs text-claude-secondary leading-relaxed mb-8">
-              Link your secure GitHub account to activate a fully interactive code reviewer. Evaluate branches, explore file directories, let Gemini diagnose optimizations, and write/commit upgrades straight back to GitHub.
-            </p>
-
-            {/* TWO METHODS TO CONNECT */}
-            <div className="text-left space-y-6">
-              
-              {/* OPTION B: PASTING TOKEN DIRECTLY */}
-              <div className="p-5 rounded-xl border border-[#2E2B25] bg-[#161514] flex flex-col gap-4">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-amber-500 font-mono tracking-wider block mb-1">Method 1 (Easiest)</span>
-                  <h3 className="text-xs font-semibold text-[#FCFBF9] font-sans">Connect using a Personal Access Token (Classic)</h3>
-                  <p className="text-[11px] text-[#999288] mt-1 leading-normal">
-                    Insert your token directly without configuring server secrets. You can configure this at <a href="https://github.com/settings/tokens/new" target="_blank" rel="noreferrer" className="text-amber-500 hover:underline font-semibold inline-flex items-center gap-0.5">github.com/settings/tokens/new <ExternalLink className="w-2.5 h-2.5" /></a>
-                  </p>
-                </div>
-
-                {/* Scopes Safety Advisory */}
-                <div className="p-3.5 rounded-lg border border-amber-500/15 bg-amber-500/[0.02] text-xs space-y-2 text-[#999288] leading-relaxed">
-                  <div className="flex items-center gap-1.5 font-bold text-amber-500 text-[11px]">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Safe Permissions Checklist (સુસંગત સેટિંગ્સ):</span>
-                  </div>
-                  <ul className="space-y-1.5 text-[11px] font-mono">
-                    <li className="flex items-start gap-1.5 text-[#E6E1DA]">
-                      <span className="text-emerald-500">✓</span>
-                      <span><strong>[Check / Select] repo</strong> (Full control of repos - code commits are done here)</span>
-                    </li>
-                    <li className="flex items-start gap-1.5 text-[#E6E1DA]">
-                      <span className="text-emerald-500">✓</span>
-                      <span><strong>[Check / Select] read:user</strong> (Allows fetching your login avatar/ID securely)</span>
-                    </li>
-                    <li className="flex items-start gap-1.5 text-[#E6E1DA]">
-                      <span className="text-emerald-500">✓</span>
-                      <span><strong>[Check / Select] user:email</strong> (Optional: read email)</span>
-                    </li>
-                    <li className="flex items-start gap-1.5 text-red-400">
-                      <span className="text-red-500">✗</span>
-                      <span>Leave **ALL** other boxes unchecked!</span>
-                    </li>
-                    <li className="flex items-start gap-1.5 text-amber-500 font-semibold pl-2">
-                      <span>•</span>
-                      <span>Keep **admin:enterprise**, **manage_billing**, **codespace**, **copilot** entirely unchecked to ensure strictly **FREE limit use** and absolute security of private user settings!</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <form onSubmit={handleManualTokenSubmit} className="flex gap-2.5 mt-1">
+            {/* Token input */}
+            <div className="rounded-2xl overflow-hidden" style={{ background: '#161B22', border: '1px solid #30363D' }}>
+              <div className="px-5 py-4 border-b" style={{ borderColor: '#21262D' }}>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-violet-500/20 border border-violet-500/30 flex items-center justify-center text-[10px] font-bold text-violet-400">2</span>
+                  Paste your token below
+                </h3>
+              </div>
+              <form onSubmit={handleManualTokenSubmit} className="px-5 py-4 space-y-3">
+                <div className="relative">
                   <input
                     type="password"
-                    placeholder="ghp_..."
+                    placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
                     value={manualToken}
                     onChange={(e) => setManualToken(e.target.value)}
-                    className="flex-1 bg-[#121110] text-[#FCFBF9] text-xs px-3.5 py-2.5 border border-[#2E2B25] rounded-xl focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 placeholder-[#6B665E]"
+                    className="w-full text-sm px-4 py-3 rounded-xl font-mono transition-all outline-none"
+                    style={{
+                      background: '#0D1117',
+                      border: `1px solid ${manualToken ? '#7C3AED' : '#30363D'}`,
+                      color: '#C9D1D9',
+                      boxShadow: manualToken ? '0 0 0 3px rgba(124,58,237,0.1)' : 'none'
+                    }}
+                    autoComplete="off"
+                    spellCheck={false}
                   />
-                  <button
-                    type="submit"
-                    disabled={!manualToken.trim()}
-                    className="shrink-0 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white font-semibold text-xs px-4 py-2.5 rounded-xl border border-amber-500/10 transition-all cursor-pointer"
-                  >
-                    Connect Token
-                  </button>
-                </form>
-              </div>
-
-              {/* OPTION A: OAUTH CLIENT CONFIG (Alternative) */}
-              <div className="p-5 rounded-xl border border-[#2E2B25]/50 bg-[#121110]/30 flex flex-col gap-3">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-violet-400 font-mono tracking-wider block mb-1">Method 2 (Alternative)</span>
-                  <h3 className="text-xs font-semibold text-[#FCFBF9] font-sans">Connect using standard GitHub OAuth popup</h3>
                 </div>
-
-                {/* Verification Credentials Alert */}
-                {!authUrlInfo?.hasCredentials ? (
-                  <div className="p-3.5 rounded-lg border border-[#2E2B25] bg-[#161514] text-left text-[11px] text-[#999288] leading-normal space-y-1.5">
-                    <div className="flex items-center gap-1.5 font-bold text-[#FCFBF9] mb-1">
-                      <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span>Configure OAuth App in .env</span>
-                    </div>
-                    <span>To use authorization popups, you must specify GITHUB_CLIENT_ID & GITHUB_CLIENT_SECRET inside your local environment parameters first. Redirect callback:</span>
-                    <code className="font-mono bg-[#2E2B25] text-amber-400 p-1 rounded block mt-1 break-all select-all text-[10px]">{authUrlInfo?.redirectUri || 'https://<your-service-url>/api/auth/github/callback'}</code>
-                  </div>
-                ) : (
-                  <div className="p-3.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-left text-xs text-emerald-400 leading-relaxed flex items-start gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold block mb-1">GitHub API Credentials Configured</span>
-                      Ready for popup callback redirection.
-                    </div>
-                  </div>
-                )}
-
                 <button
-                  onClick={handleConnect}
-                  disabled={loadingUser || !authUrlInfo?.hasCredentials}
-                  className={`w-full flex items-center justify-center gap-2 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-semibold text-xs rounded-xl border border-violet-500/20 transition-all cursor-pointer disabled:opacity-40 disabled:pointer-events-none`}
+                  type="submit"
+                  disabled={!manualToken.trim()}
+                  className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  style={{ background: manualToken.trim() ? 'linear-gradient(135deg, #7C3AED, #6D28D9)' : '#2D333B', border: '1px solid rgba(124,58,237,0.3)' }}
                 >
-                  {loadingUser ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Configuring Workspace Sync...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Github className="w-3.5 h-3.5" />
-                      <span>Securely Connect via OAuth Popup</span>
-                    </>
-                  )}
+                  <Github className="w-4 h-4" />
+                  Connect to GitHub
                 </button>
-              </div>
-
+              </form>
             </div>
 
+            {/* OAuth Alternative (collapsed, less prominent) */}
+            {authUrlInfo?.hasCredentials && (
+              <button
+                onClick={handleConnect}
+                disabled={loadingUser}
+                className="w-full py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-2 text-[#8B949E] hover:text-white"
+                style={{ background: 'transparent', border: '1px solid #30363D' }}
+              >
+                {loadingUser ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Github className="w-3.5 h-3.5" />}
+                Or connect via OAuth popup instead
+              </button>
+            )}
+
             {errorMsg && (
-              <div className="mt-4 p-3 rounded-lg border border-red-900/40 bg-red-950/10 text-red-400 text-xs text-left flex items-start gap-2">
+              <div className="flex items-start gap-2.5 p-3.5 rounded-xl text-xs text-red-400" style={{ background: 'rgba(248,81,73,0.06)', border: '1px solid rgba(248,81,73,0.2)' }}>
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <span>{errorMsg}</span>
               </div>
             )}
+
+            {/* Security note */}
+            <p className="text-center text-[10px] text-[#6E7681] px-4 leading-relaxed">
+              🔒 Your token is stored only in your browser's local storage and is never sent to any third-party server.
+            </p>
           </div>
         </div>
+
       ) : !selectedRepo ? (
         /* REPO SEARCH & SELECTOR SCREEN */
         <div className="flex-1 p-6 md:p-8 flex flex-col items-center justify-start overflow-y-auto bg-claude-bg">
