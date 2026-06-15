@@ -913,7 +913,7 @@ This error happens on the Gemini platform when a free-tier key has made too many
 
   // Specialized API: AI Code Review with Gemini
   app.post('/api/github/repos/:owner/:repo/review', async (req, res) => {
-    const { path: filepath, content, instructions, highThinking } = req.body;
+    const { path: filepath, content, instructions, useLiteModel } = req.body;
     const currentApiKey = process.env.GEMINI_API_KEY;
     if (!currentApiKey) {
       return res.status(401).json({ error: 'Server GEMINI_API_KEY is not configured.' });
@@ -941,22 +941,14 @@ ${content}
 
 Provide your detailed review in a clear, constructive, and highly elegant markdown format that is easy to read. Speaking directly to the developer with actionable wisdom.`;
 
-      const useHighThinking = highThinking === true; // Default to false (gemini-3.5-flash) for instant response
-      const modelName = useHighThinking ? 'gemini-3.1-pro-preview' : 'gemini-3.5-flash';
+      const isLite = useLiteModel === true;
+      const modelName = isLite ? 'gemini-3.1-flash-lite' : 'gemini-3.5-flash';
       
-      console.log(`[GitHub AI Review] Reviewing ${filepath} using model: ${modelName} (highThinking: ${useHighThinking})...`);
-
-      const config: any = {};
-      if (useHighThinking) {
-        config.thinkingConfig = {
-          thinkingLevel: ThinkingLevel.HIGH
-        };
-      }
+      console.log(`[GitHub AI Review] Reviewing ${filepath} using model: ${modelName}...`);
 
       const result = await ai.models.generateContent({
         model: modelName,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config
+        contents: [{ role: 'user', parts: [{ text: prompt }] }]
       });
 
       res.json({ review: result.text });
