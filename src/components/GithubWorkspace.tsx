@@ -99,7 +99,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
   });
   const [reviewing, setReviewing] = useState(false);
   const [customInstructions, setCustomInstructions] = useState('');
-  const [highThinking, setHighThinking] = useState(true);
+  const [useLiteModel, setUseLiteModel] = useState(false);
   
   // Mobile active layout tab configuration
   const [mobileTab, setMobileTab] = useState<'files' | 'editor' | 'review'>('files');
@@ -419,7 +419,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
         path: selectedFile.path,
         content: fileContent,
         instructions: customInstructions,
-        highThinking: highThinking,
+        useLiteModel: useLiteModel,
       })
     })
       .then(res => res.json())
@@ -1226,22 +1226,22 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                       </button>
                     </div>
 
-                    {/* High Thinking Mode Toggle */}
+                    {/* Model Toggle */}
                     <button
                       onClick={() => {
-                        setHighThinking(!highThinking);
+                        setUseLiteModel(!useLiteModel);
                         playSound('/audio/rounded.ogg');
                       }}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer select-none ${
-                        highThinking 
-                          ? 'bg-amber-600/10 text-amber-500 border-amber-500/30' 
-                          : 'bg-[#191816]/30 text-[#999288] border-[#2E2B25] hover:text-[#FCFBF9]'
+                        useLiteModel 
+                          ? 'bg-[#191816]/30 text-[#999288] border-[#2E2B25] hover:text-[#FCFBF9]'
+                          : 'bg-amber-600/10 text-amber-500 border-amber-500/30' 
                       }`}
-                      title={highThinking ? "High Thinking: Active (Gemini 3.1 Pro)" : "High Thinking: Off (Gemini 3.5 Flash)"}
+                      title={useLiteModel ? "Fast Mode: Active (Gemini 3.1 Flash-Lite)" : "Standard Mode: Active (Gemini 3.5 Flash)"}
                     >
-                      <Brain className={`w-3.5 h-3.5 ${highThinking ? 'animate-pulse text-amber-400' : ''}`} />
-                      <span className="hidden sm:inline">HIGH THINKING</span>
-                      <span className={`w-1.5 h-1.5 rounded-full ${highThinking ? 'bg-amber-500' : 'bg-zinc-600'}`} />
+                      <Brain className={`w-3.5 h-3.5 ${!useLiteModel ? 'animate-pulse text-amber-400' : ''}`} />
+                      <span className="hidden sm:inline">{useLiteModel ? 'FLASH LITE' : 'FLASH 3.5'}</span>
+                      <span className={`w-1.5 h-1.5 rounded-full ${!useLiteModel ? 'bg-amber-500' : 'bg-zinc-600'}`} />
                     </button>
 
                     {/* Gemini AI review buttons */}
@@ -1411,9 +1411,9 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                           <Wand2 className="w-8 h-8 animate-spin text-amber-500 mb-3" />
                           <p className="text-xs font-semibold text-[#FCFBF9] mb-1">Evaluating file with Gemini AI...</p>
                           <p className="text-[10px] text-[#999288] max-w-[180px] leading-relaxed">
-                            {highThinking 
-                              ? "Running advanced reasoning pipeline... This uses deep analytical thinking cycles to plan edge-case coverage and bug-free optimizations."
-                              : "Checking for vulnerabilities, code syntax, and constructing optimized refactored draft."}
+                            {useLiteModel 
+                              ? "Running lightning-fast review with Gemini 3.1 Flash-Lite... Checking syntax and structural issues."
+                              : "Running deep standard review with Gemini 3.5 Flash... Checking for vulnerabilities, logic bugs, and optimal refactoring."}
                           </p>
                         </div>
                       ) : !aiReview ? (
