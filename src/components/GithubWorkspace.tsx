@@ -52,7 +52,11 @@ interface FileItem {
   url: string;
 }
 
-export default function GithubWorkspace() {
+interface GithubWorkspaceProps {
+  onGoBackToChat?: () => void;
+}
+
+export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps) {
   // Auth state
   const [token, setToken] = useState<string | null>(() => {
     return localStorage.getItem('github_oauth_token') || null;
@@ -559,10 +563,19 @@ export default function GithubWorkspace() {
       </div>
 
       {/* Top Section */}
-      <div className="h-16 border-b border-[#2E2B25] bg-[#191816]/70 px-6 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
-            <Github className="w-5 h-5" />
+      <div className="h-16 border-b border-[#2E2B25] bg-[#191816]/70 px-4 md:px-6 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2 md:gap-3">
+          {onGoBackToChat && (
+            <button
+              onClick={onGoBackToChat}
+              className="p-1.5 md:hidden text-[#999288] hover:text-[#FCFBF9] hover:bg-[#2E2B25] rounded-xl transition-all cursor-pointer"
+              title="Go back to Home"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
+          <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
+            <Github className="w-4 h-4 md:w-5 h-5" />
           </div>
           <div>
             <h1 className="text-sm font-serif font-semibold text-[#FCFBF9] tracking-wide flex items-center gap-2">
