@@ -823,7 +823,12 @@ export default function App() {
           }}
         />
       ) : (
-        <GithubWorkspace />
+        <GithubWorkspace 
+          onGoBackToChat={() => {
+            setActiveTab('chat');
+            playSound('/audio/rounded.ogg');
+          }}
+        />
       )}
 
       {/* Preferences & Settings overlay dialog */}
