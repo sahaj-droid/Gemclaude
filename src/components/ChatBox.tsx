@@ -679,61 +679,63 @@ export default function ChatBox({
                     )}
                   </div>
 
-                  {/* Status checklist timestamp */}
-                  <div className="flex items-center gap-1.5 mt-1.5 px-1.5 text-[10px] font-semibold text-claude-secondary select-none">
-                    <span>
-                      {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    {isUser ? (
-                      <div className="flex items-center gap-0.5">
-                        <Check className="w-3 h-3 text-emerald-600" />
-                        <span>Sent</span>
-                      </div>
-                     ) : (
-                      <>
-                        <span className="text-claude-secondary/40">•</span>
-                        <button
-                          onClick={() => handleCopyText(m.id, m.text)}
-                          className="flex items-center gap-1 hover:text-claude-text hover:bg-claude-border/30 px-1.5 py-0.5 rounded-md transition-all duration-150 cursor-pointer text-claude-secondary active:scale-95"
-                          title="Copy message to clipboard"
-                          id={`copy-btn-${m.id}`}
-                        >
-                          {copiedMessageId === m.id ? (
-                            <>
-                              <Check className="w-3 h-3 text-emerald-600" />
-                              <span className="text-emerald-600 text-[10px]">Copied!</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3 h-3 text-claude-accent" />
-                              <span>Copy</span>
-                            </>
-                          )}
-                        </button>
+                  {/* Status checklist timestamp — hide while this AI message is still loading (empty text + streaming) */}
+                  {!(isStreaming && !isUser && !m.text) && (
+                    <div className="flex items-center gap-1.5 mt-1.5 px-1.5 text-[10px] font-semibold text-claude-secondary select-none">
+                      <span>
+                        {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      {isUser ? (
+                        <div className="flex items-center gap-0.5">
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          <span>Sent</span>
+                        </div>
+                       ) : (
+                        <>
+                          <span className="text-claude-secondary/40">•</span>
+                          <button
+                            onClick={() => handleCopyText(m.id, m.text)}
+                            className="flex items-center gap-1 hover:text-claude-text hover:bg-claude-border/30 px-1.5 py-0.5 rounded-md transition-all duration-150 cursor-pointer text-claude-secondary active:scale-95"
+                            title="Copy message to clipboard"
+                            id={`copy-btn-${m.id}`}
+                          >
+                            {copiedMessageId === m.id ? (
+                              <>
+                                <Check className="w-3 h-3 text-emerald-600" />
+                                <span className="text-emerald-600 text-[10px]">Copied!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3 text-claude-accent" />
+                                <span>Copy</span>
+                              </>
+                            )}
+                          </button>
 
-                        <span className="text-claude-secondary/40">•</span>
-                        <button
-                          onClick={() => handleReadAloud(m.id, m.text)}
-                          className={`flex items-center gap-1 hover:text-claude-text hover:bg-claude-border/30 px-1.5 py-0.5 rounded-md transition-all duration-150 cursor-pointer active:scale-95 text-claude-secondary ${
-                            speakingMessageId === m.id ? 'bg-amber-500/10 text-amber-600 border border-amber-500/10' : ''
-                          }`}
-                          title={speakingMessageId === m.id ? "Stop Reading Aloud" : "Read message aloud"}
-                        >
-                          {speakingMessageId === m.id ? (
-                            <>
-                              <VolumeX className="w-3 h-3 text-amber-500 animate-pulse" />
-                              <span className="text-amber-500 font-semibold">Stop</span>
-                            </>
-                          ) : (
-                            <>
-                              <Volume2 className="w-3 h-3 text-claude-accent" />
-                              <span>Read Aloud</span>
-                            </>
-                          )}
-                        </button>
-                      </>
-                    )}
-                  </div>
+                          <span className="text-claude-secondary/40">•</span>
+                          <button
+                            onClick={() => handleReadAloud(m.id, m.text)}
+                            className={`flex items-center gap-1 hover:text-claude-text hover:bg-claude-border/30 px-1.5 py-0.5 rounded-md transition-all duration-150 cursor-pointer active:scale-95 text-claude-secondary ${
+                              speakingMessageId === m.id ? 'bg-amber-500/10 text-amber-600 border border-amber-500/10' : ''
+                            }`}
+                            title={speakingMessageId === m.id ? "Stop Reading Aloud" : "Read message aloud"}
+                          >
+                            {speakingMessageId === m.id ? (
+                              <>
+                                <VolumeX className="w-3 h-3 text-amber-500 animate-pulse" />
+                                <span className="text-amber-500 font-semibold">Stop</span>
+                              </>
+                            ) : (
+                              <>
+                                <Volume2 className="w-3 h-3 text-claude-accent" />
+                                <span>Read Aloud</span>
+                              </>
+                            )}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
