@@ -885,6 +885,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
               )}
               <h2 className="text-base font-bold text-white">Your Repositories</h2>
               <p className="text-xs mt-0.5" style={{ color: '#8B949E' }}>Select a repo to browse files and run AI review</p>
+              </div>
             </div>
           </div>
 
