@@ -941,7 +941,7 @@ ${content}
 
 Provide your detailed review in a clear, constructive, and highly elegant markdown format that is easy to read. Speaking directly to the developer with actionable wisdom.`;
 
-      const useHighThinking = highThinking !== false; // Default to true if not specified
+      const useHighThinking = highThinking === true; // Default to false (gemini-3.5-flash) for instant response
       const modelName = useHighThinking ? 'gemini-3.1-pro-preview' : 'gemini-3.5-flash';
       
       console.log(`[GitHub AI Review] Reviewing ${filepath} using model: ${modelName} (highThinking: ${useHighThinking})...`);
