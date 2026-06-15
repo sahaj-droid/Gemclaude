@@ -202,16 +202,26 @@ export default function CodeBlock({ code, language }: CodeBlockProps) {
 
   const handleDownload = () => {
     const ext = extensionMap[lang] || 'txt';
-    const blob = new Blob([code], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `gemclaude_snippet.${ext}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const filename = `gemclaude_snippet.${ext}`;
     playSound('/audio/enter.ogg');
+
+    try {
+      // Use data URI instead of blob URL — works on Android WebView
+      const dataUri = 'data:text/plain;charset=utf-8,' + encodeURIComponent(code);
+      const link = document.createElement('a');
+      link.href = dataUri;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch {
+      // Fallback: open in new tab for manual save
+      const win = window.open('', '_blank');
+      if (win) {
+        win.document.write('<pre style="font-family:monospace;white-space:pre-wrap;padding:16px">' + code.replace(/</g, '&lt;') + '</pre>');
+        win.document.title = filename;
+      }
+    }
   };
 
   const renderHighlighted = () => {
