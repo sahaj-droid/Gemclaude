@@ -361,8 +361,18 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
   };
 
   // Load selected file details
+  const BINARY_EXTENSIONS = new Set(['png','jpg','jpeg','gif','svg','ico','webp','bmp','tiff','pdf','zip','tar','gz','exe','bin','woff','woff2','ttf','eot','mp3','mp4','wav','ogg']);
+
   const handleFileClick = (file: FileItem) => {
     if (!selectedRepo) return;
+    
+    // Skip binary files
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    if (BINARY_EXTENSIONS.has(ext)) {
+      setErrorMsg(`Binary files (${ext.toUpperCase()}) cannot be displayed as text. Select a code or text file.`);
+      return;
+    }
+
     playSound('/audio/rounded.ogg');
     setSelectedFile(file);
     setLoadingContent(true);
@@ -1296,9 +1306,31 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                     )}
 
                     {!isEditMode ? (
-                      /* VIEW MODE: Wrap code output inside premium formatter CodeBlock */
+                      /* VIEW MODE */
                       <div className="w-full">
-                        <CodeBlock code={fileContent} language={selectedFile.name.split('.').pop() || 'typescript'} />
+                        {fileContent.length > 80000 ? (
+                          // Large file: skip syntax highlighter to prevent crash
+                          <div className="rounded-xl border border-[#2E2B25] bg-[#0E0D0C] overflow-hidden">
+                            <div className="px-3 py-2 bg-[#161514] border-b border-[#2E2B25] text-[10px] text-[#999288] font-mono flex items-center gap-2">
+                              <span className="text-amber-500 font-bold">⚠ LARGE FILE</span>
+                              <span>{selectedFile.name} — {Math.round(fileContent.length / 1024)}KB (plain view)</span>
+                            </div>
+                            <pre className="p-4 text-xs text-[#D4D4D4] font-mono overflow-auto max-h-[60vh] leading-relaxed whitespace-pre-wrap break-all custom-scrollbar">{fileContent}</pre>
+                          </div>
+                        ) : (
+                          (() => {
+                            try {
+                              return <CodeBlock code={fileContent} language={selectedFile.name.split('.').pop() || 'text'} />;
+                            } catch {
+                              return (
+                                <div className="rounded-xl border border-[#2E2B25] bg-[#0E0D0C] overflow-hidden">
+                                  <div className="px-3 py-2 bg-[#161514] border-b border-[#2E2B25] text-[10px] text-amber-400 font-mono">Syntax highlighter error — showing raw view</div>
+                                  <pre className="p-4 text-xs text-[#D4D4D4] font-mono overflow-auto max-h-[60vh] leading-relaxed whitespace-pre-wrap break-all custom-scrollbar">{fileContent}</pre>
+                                </div>
+                              );
+                            }
+                          })()
+                        )}
                       </div>
                     ) : (
                       /* ACTIVE EDIT MODE: Monospaced Textarea with Commit Form */
