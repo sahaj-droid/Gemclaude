@@ -667,61 +667,66 @@ RESPONSE FORMAT:
         }
 
         let functionCallsToExecute: any[] = [];
+        let modelParts: any[] = [];
 
         try {
           for await (const chunk of responseStream) {
-            if (chunk.text) {
-            const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata || null;
-            res.write(`data: ${JSON.stringify({ text: chunk.text, groundingMetadata })}\n\n`);
-          }
-          if (chunk.functionCalls && chunk.functionCalls.length > 0) {
-            functionCallsToExecute.push(...chunk.functionCalls);
-          }
-        }
-
-        if (functionCallsToExecute.length > 0) {
-          // Add the model's function calls to the history
-          currentContents.push({
-            role: 'model',
-            parts: functionCallsToExecute.map(fc => ({ functionCall: fc }))
-          });
-
-          const functionResponses = [];
-          for (const fc of functionCallsToExecute) {
-            res.write(`data: ${JSON.stringify({ text: `\n> ⚡ **Agent Action**: Executing \`${fc.name}\`...\n\n` })}\n\n`);
-            
-            let resultStr = '';
-            try {
-              if (fc.name === 'execute_javascript') {
-                const { executeJavascript } = await import('./tools/codeInterpreter.js');
-                resultStr = await executeJavascript(fc.args.code);
-              } else if (fc.name === 'read_website') {
-                const { readWebsite } = await import('./tools/webReader.js');
-                resultStr = await readWebsite(fc.args.url);
-              } else if (fc.name === 'github_api') {
-                const { fetchGithubRepoFile } = await import('./tools/githubBrowser.js');
-                resultStr = await fetchGithubRepoFile(fc.args.owner, fc.args.repo, fc.args.path);
-              } else {
-                resultStr = 'Unknown function call';
-              }
-            } catch (err: any) {
-              resultStr = `Error executing ${fc.name}: ${err.message}`;
+            if (chunk.candidates?.[0]?.content?.parts) {
+              modelParts.push(...chunk.candidates[0].content.parts);
             }
 
-            functionResponses.push({
-              functionResponse: {
-                name: fc.name,
-                response: { result: resultStr }
-              }
-            });
-            
-            res.write(`data: ${JSON.stringify({ text: `> ✅ **Action Completed**\n\n` })}\n\n`);
+            if (chunk.text) {
+              const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata || null;
+              res.write(`data: ${JSON.stringify({ text: chunk.text, groundingMetadata })}\n\n`);
+            }
+            if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+              functionCallsToExecute.push(...chunk.functionCalls);
+            }
           }
 
-          // Add the responses back to the history
-          currentContents.push({
-            role: 'user',
-            parts: functionResponses
+          if (functionCallsToExecute.length > 0) {
+            // Add the model's complete parts to history (preserves thought_signatures)
+            currentContents.push({
+              role: 'model',
+              parts: modelParts
+            });
+
+            const functionResponses = [];
+            for (const fc of functionCallsToExecute) {
+              res.write(`data: ${JSON.stringify({ text: `\n> ⚡ **Agent Action**: Executing \`${fc.name}\`...\n\n` })}\n\n`);
+              
+              let resultStr = '';
+              try {
+                if (fc.name === 'execute_javascript') {
+                  const { executeJavascript } = await import('./tools/codeInterpreter.js');
+                  resultStr = await executeJavascript(fc.args.code);
+                } else if (fc.name === 'read_website') {
+                  const { readWebsite } = await import('./tools/webReader.js');
+                  resultStr = await readWebsite(fc.args.url);
+                } else if (fc.name === 'github_api') {
+                  const { fetchGithubRepoFile } = await import('./tools/githubBrowser.js');
+                  resultStr = await fetchGithubRepoFile(fc.args.owner, fc.args.repo, fc.args.path);
+                } else {
+                  resultStr = 'Unknown function call';
+                }
+              } catch (err: any) {
+                resultStr = `Error executing ${fc.name}: ${err.message}`;
+              }
+
+              functionResponses.push({
+                functionResponse: {
+                  name: fc.name,
+                  response: { result: resultStr }
+                }
+              });
+              
+              res.write(`data: ${JSON.stringify({ text: `> ✅ **Action Completed**\n\n` })}\n\n`);
+            }
+
+            // Add the responses back to the history
+            currentContents.push({
+              role: 'user',
+              parts: functionResponses
           });
           
           // The loop will continue and call generateContentStream again with the updated history
