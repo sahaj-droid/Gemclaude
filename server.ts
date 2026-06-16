@@ -693,7 +693,7 @@ RESPONSE FORMAT:
 
             const functionResponses = [];
             for (const fc of functionCallsToExecute) {
-              res.write(`data: ${JSON.stringify({ text: `\n> ⚡ **Agent Action**: Executing \`${fc.name}\`...\n\n` })}\n\n`);
+              res.write(`data: ${JSON.stringify({ tool_status: `Executing ${fc.name}...` })}\n\n`);
               
               let resultStr = '';
               try {
@@ -720,7 +720,7 @@ RESPONSE FORMAT:
                 }
               });
               
-              res.write(`data: ${JSON.stringify({ text: `> ✅ **Action Completed**\n\n` })}\n\n`);
+              res.write(`data: ${JSON.stringify({ tool_completed: true })}\n\n`);
             }
 
             // Add the responses back to the history
