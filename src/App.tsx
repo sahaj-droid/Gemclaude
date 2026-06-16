@@ -5,6 +5,7 @@ import ChatBox from './components/ChatBox';
 import SettingsModal from './components/SettingsModal';
 import FinanceDashboard from './components/FinanceDashboard';
 import GithubWorkspace from './components/GithubWorkspace';
+import GoogleWorkspace from './components/GoogleWorkspace';
 import ImagenStudio from './components/ImagenStudio';
 import { ChatSession, Message, Attachment, ModelType } from './types';
 import { 
@@ -76,7 +77,7 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [userEmail, setUserEmail] = useState('sahaj.cute@gmail.com');
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'chat' | 'stocks' | 'github'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'stocks' | 'github' | 'google'>('chat');
   
   const [soundsEnabled, setSoundsEnabled] = useState<boolean>(() => {
     return localStorage.getItem('claude_sounds_enabled') !== 'false';
@@ -822,12 +823,20 @@ export default function App() {
             playSound('/audio/rounded.ogg');
           }}
         />
-      ) : (
+      ) : activeTab === 'github' ? (
         <GithubWorkspace 
           onGoBackToChat={() => {
             setActiveTab('chat');
             playSound('/audio/rounded.ogg');
           }}
+        />
+      ) : (
+        <GoogleWorkspace
+          onGoBackToChat={() => {
+            setActiveTab('chat');
+            playSound('/audio/rounded.ogg');
+          }}
+          googleClientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}
         />
       )}
 
