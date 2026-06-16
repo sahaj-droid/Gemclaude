@@ -1079,6 +1079,11 @@ Provide your detailed review in a clear, constructive, and highly elegant markdo
     }
   });
 
+  // --- Google Workspace API Route ---
+  app.get('/api/google/client-id', (req, res) => {
+    res.json({ clientId: process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '' });
+  });
+
   // Handle Vite in dev or serve build in prod
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
