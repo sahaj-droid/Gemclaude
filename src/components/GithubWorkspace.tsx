@@ -1306,31 +1306,24 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                     )}
 
                     {!isEditMode ? (
-                      /* VIEW MODE */
-                      <div className="w-full">
-                        {fileContent.length > 80000 ? (
-                          // Large file: skip syntax highlighter to prevent crash
-                          <div className="rounded-xl border border-[#2E2B25] bg-[#0E0D0C] overflow-hidden">
-                            <div className="px-3 py-2 bg-[#161514] border-b border-[#2E2B25] text-[10px] text-[#999288] font-mono flex items-center gap-2">
-                              <span className="text-amber-500 font-bold">⚠ LARGE FILE</span>
-                              <span>{selectedFile.name} — {Math.round(fileContent.length / 1024)}KB (plain view)</span>
-                            </div>
-                            <pre className="p-4 text-xs text-[#D4D4D4] font-mono overflow-auto max-h-[60vh] leading-relaxed whitespace-pre-wrap break-all custom-scrollbar">{fileContent}</pre>
-                          </div>
-                        ) : (
-                          (() => {
-                            try {
-                              return <CodeBlock code={fileContent} language={selectedFile.name.split('.').pop() || 'text'} />;
-                            } catch {
-                              return (
-                                <div className="rounded-xl border border-[#2E2B25] bg-[#0E0D0C] overflow-hidden">
-                                  <div className="px-3 py-2 bg-[#161514] border-b border-[#2E2B25] text-[10px] text-amber-400 font-mono">Syntax highlighter error — showing raw view</div>
-                                  <pre className="p-4 text-xs text-[#D4D4D4] font-mono overflow-auto max-h-[60vh] leading-relaxed whitespace-pre-wrap break-all custom-scrollbar">{fileContent}</pre>
-                                </div>
-                              );
-                            }
-                          })()
-                        )}
+                      /* VIEW MODE — lightweight plain viewer, no tokenizer crash */
+                      <div className="rounded-xl border overflow-hidden" style={{ borderColor: '#21262D', background: '#0D1117' }}>
+                        {/* File info bar */}
+                        <div className="flex items-center justify-between px-4 py-2 text-[11px] font-mono" style={{ background: '#161B22', borderBottom: '1px solid #21262D' }}>
+                          <span style={{ color: '#8B949E' }}>{selectedFile.name}</span>
+                          <span style={{ color: '#6E7681' }}>{fileContent.split('\n').length} lines · {Math.round(fileContent.length / 1024 * 10) / 10}KB</span>
+                        </div>
+                        {/* Code content — simple pre, zero crash risk */}
+                        <pre
+                          className="p-4 text-xs font-mono leading-relaxed overflow-auto custom-scrollbar"
+                          style={{
+                            color: '#E6EDF3',
+                            maxHeight: '65vh',
+                            whiteSpace: 'pre',
+                            overflowX: 'auto',
+                            tabSize: 2,
+                          }}
+                        >{fileContent}</pre>
                       </div>
                     ) : (
                       /* ACTIVE EDIT MODE: Monospaced Textarea with Commit Form */
