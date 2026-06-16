@@ -455,15 +455,15 @@ export default function App() {
     };
 
     const targetSession = sessions.find(s => s.id === currentSessionId) || currentSessions.find(s => s.id === currentSessionId);
-    if (!targetSession) return;
+    if (!user && !targetSession) return;
 
     const isFirstUserMessage = user 
       ? activeSessionMessages.length === 0 
-      : targetSession.messages.length === 0;
+      : (targetSession ? targetSession.messages.length === 0 : true);
 
     const updatedMessages = user 
       ? [...activeSessionMessages, userMsg] 
-      : [...targetSession.messages, userMsg];
+      : [...(targetSession ? targetSession.messages : []), userMsg];
 
     if (user) {
       try {
