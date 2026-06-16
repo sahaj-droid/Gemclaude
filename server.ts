@@ -579,16 +579,66 @@ RESPONSE FORMAT:
 
         console.log(`[Gemini API] Requesting stream using model ${modelToUse} with searchGrounding=${!!searchGrounding}...`);
         
-        let responseStream;
-        try {
-          responseStream = await ai.models.generateContentStream({
-            model: modelToUse,
-            contents: contents,
-            config: {
-              systemInstruction: sysInstruction,
-              ...(searchGrounding ? { tools: [{ googleSearch: {} }] } : {})
+        let keepGenerating = true;
+        let currentContents = [...contents]; // Working history for function calls
+
+        // Universal Tools Definition
+        const customTools = {
+          functionDeclarations: [
+            {
+              name: 'execute_javascript',
+              description: 'Executes Javascript code in a secure Node.js sandbox. Use this for math, algorithms, and data processing. Returns the console output and final result.',
+              parameters: {
+                type: 'OBJECT',
+                properties: {
+                  code: { type: 'STRING', description: 'The Javascript code to execute.' }
+                },
+                required: ['code']
+              }
+            },
+            {
+              name: 'read_website',
+              description: 'Fetches and parses the text content of any given URL.',
+              parameters: {
+                type: 'OBJECT',
+                properties: {
+                  url: { type: 'STRING', description: 'The fully qualified URL to read' }
+                },
+                required: ['url']
+              }
+            },
+            {
+              name: 'github_api',
+              description: 'Fetches the content of a file from a public GitHub repository.',
+              parameters: {
+                type: 'OBJECT',
+                properties: {
+                  owner: { type: 'STRING', description: 'Repository owner username' },
+                  repo: { type: 'STRING', description: 'Repository name' },
+                  path: { type: 'STRING', description: 'Path to the file inside the repo' }
+                },
+                required: ['owner', 'repo', 'path']
+              }
             }
-          });
+          ]
+        };
+
+        const toolsArr: any[] = [customTools];
+        if (searchGrounding) {
+          toolsArr.push({ googleSearch: {} });
+        }
+
+        while (keepGenerating) {
+          let responseStream;
+          try {
+            responseStream = await ai.models.generateContentStream({
+              model: modelToUse,
+              contents: currentContents,
+              config: {
+                systemInstruction: sysInstruction,
+                tools: toolsArr
+              }
+            });
         } catch (firstTryErr: any) {
           const errMsg = firstTryErr?.message || (typeof firstTryErr === 'string' ? firstTryErr : JSON.stringify(firstTryErr));
           const isQuota = isQuotaOrRateLimit(errMsg, firstTryErr?.status);
@@ -605,10 +655,10 @@ RESPONSE FORMAT:
             
             responseStream = await ai.models.generateContentStream({
               model: 'gemini-3.1-flash-lite',
-              contents: contents,
+              contents: currentContents,
               config: {
                 systemInstruction: sysInstruction,
-                ...(searchGrounding ? { tools: [{ googleSearch: {} }] } : {})
+                tools: toolsArr
               }
             });
           } else {
@@ -616,19 +666,81 @@ RESPONSE FORMAT:
           }
         }
 
-        for await (const chunk of responseStream) {
-          if (chunk.text) {
+        let functionCallsToExecute: any[] = [];
+
+        try {
+          for await (const chunk of responseStream) {
+            if (chunk.text) {
             const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata || null;
             res.write(`data: ${JSON.stringify({ text: chunk.text, groundingMetadata })}\n\n`);
           }
+          if (chunk.functionCalls && chunk.functionCalls.length > 0) {
+            functionCallsToExecute.push(...chunk.functionCalls);
+          }
+        }
+
+        if (functionCallsToExecute.length > 0) {
+          // Add the model's function calls to the history
+          currentContents.push({
+            role: 'model',
+            parts: functionCallsToExecute.map(fc => ({ functionCall: fc }))
+          });
+
+          const functionResponses = [];
+          for (const fc of functionCallsToExecute) {
+            res.write(`data: ${JSON.stringify({ text: `\n> ⚡ **Agent Action**: Executing \`${fc.name}\`...\n\n` })}\n\n`);
+            
+            let resultStr = '';
+            try {
+              if (fc.name === 'execute_javascript') {
+                const { executeJavascript } = await import('./tools/codeInterpreter.js');
+                resultStr = await executeJavascript(fc.args.code);
+              } else if (fc.name === 'read_website') {
+                const { readWebsite } = await import('./tools/webReader.js');
+                resultStr = await readWebsite(fc.args.url);
+              } else if (fc.name === 'github_api') {
+                const { fetchGithubRepoFile } = await import('./tools/githubBrowser.js');
+                resultStr = await fetchGithubRepoFile(fc.args.owner, fc.args.repo, fc.args.path);
+              } else {
+                resultStr = 'Unknown function call';
+              }
+            } catch (err: any) {
+              resultStr = `Error executing ${fc.name}: ${err.message}`;
+            }
+
+            functionResponses.push({
+              functionResponse: {
+                name: fc.name,
+                response: { result: resultStr }
+              }
+            });
+            
+            res.write(`data: ${JSON.stringify({ text: `> ✅ **Action Completed**\n\n` })}\n\n`);
+          }
+
+          // Add the responses back to the history
+          currentContents.push({
+            role: 'user',
+            parts: functionResponses
+          });
+          
+          // The loop will continue and call generateContentStream again with the updated history
+        } else {
+          // No more function calls, we are done
+          keepGenerating = false;
         }
       } catch (streamErr: any) {
         throw streamErr;
       }
+    } // end while (keepGenerating)
+    
+  } catch (outerErr: any) {
+    throw outerErr;
+  }
 
-      res.write('data: [DONE]\n\n');
-      res.end();
-    } catch (err: any) {
+    res.write('data: [DONE]\n\n');
+    res.end();
+  } catch (err: any) {
       console.error('[Gemini API Final Error]:', err.message || err);
       
       let rawMsg = '';
