@@ -156,7 +156,20 @@ export default function GoogleWorkspace({ onGoBackToChat, googleClientId }: Goog
   const [ytError, setYtError] = useState<string | null>(null);
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
 
-  const clientId = googleClientId || (typeof window !== 'undefined' ? (window as any).__GOOGLE_CLIENT_ID__ : '');
+  const [fetchedClientId, setFetchedClientId] = useState<string | null>(null);
+  const clientId = googleClientId || fetchedClientId || (typeof window !== 'undefined' ? (window as any).__GOOGLE_CLIENT_ID__ : '');
+
+  // ── Fetch Client ID from Backend ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!clientId) {
+      fetch('/api/google/client-id')
+        .then(res => res.json())
+        .then(data => {
+          if (data.clientId) setFetchedClientId(data.clientId);
+        })
+        .catch(err => console.error('Failed to fetch client ID', err));
+    }
+  }, [clientId]);
 
   const playSound = (soundFile: string) => {
     const soundsEnabled = localStorage.getItem('claude_sounds_enabled') !== 'false';
