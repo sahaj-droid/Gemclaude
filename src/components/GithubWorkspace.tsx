@@ -412,9 +412,13 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
     setErrorMsg(null);
     setMobileTab('review');
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 50000); // 50s timeout
+
     fetch(`/api/github/repos/${selectedRepo?.owner.login}/${selectedRepo?.name}/review`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         path: selectedFile.path,
         content: fileContent,
@@ -424,6 +428,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
     })
       .then(res => res.json())
       .then(data => {
+        clearTimeout(timeoutId);
         if (data.review) {
           setAiReview(data.review);
           playSound('/audio/user_input_end.ogg');
@@ -432,7 +437,12 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
         }
       })
       .catch(err => {
-        setErrorMsg(`Gemini Connection Error: ${err.message}`);
+        clearTimeout(timeoutId);
+        if (err.name === 'AbortError') {
+          setErrorMsg('AI Review timed out after 50s. Try again with a shorter file or use Flash Lite mode.');
+        } else {
+          setErrorMsg(`Gemini Connection Error: ${err.message}`);
+        }
       })
       .finally(() => {
         setReviewing(false);
@@ -564,66 +574,55 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
 
       {/* Top Section - ONLY VISIBLE WHEN IN ACTIVE WORKSPACE */}
       {token && selectedRepo && (
-        <div className="h-16 border-b border-[#2E2B25] bg-[#191816]/70 px-4 md:px-6 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2 md:gap-3">
-          {onGoBackToChat && (
-            <button
-              onClick={onGoBackToChat}
-              className="p-2 text-[#999288] hover:text-white hover:bg-[#2E2B25] rounded-xl transition-all cursor-pointer active:scale-95"
-              title="Go back to Chat"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-          )}
-          <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-violet-600/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
-            <Github className="w-4 h-4 md:w-5 h-5" />
+        <div
+          className="h-14 border-b shrink-0 flex items-center justify-between px-4"
+          style={{ background: '#161B22', borderColor: '#21262D' }}
+        >
+          {/* Left: back + repo info */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            {onGoBackToChat && (
+              <button
+                onClick={onGoBackToChat}
+                className="p-2 shrink-0 rounded-xl transition-all cursor-pointer active:scale-95"
+                style={{ color: '#8B949E' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#21262D'; (e.currentTarget as HTMLButtonElement).style.color = '#fff'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = '#8B949E'; }}
+                title="Go back to Chat"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
+            <div className="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center" style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.25)' }}>
+              <Github className="w-4 h-4" style={{ color: '#A78BFA' }} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-white truncate leading-none">{selectedRepo.name}</p>
+              <p className="text-[10px] mt-0.5 truncate" style={{ color: '#8B949E' }}>/{selectedRepo.owner.login}</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-sm font-serif font-semibold text-[#FCFBF9] tracking-wide flex items-center gap-2">
-              GitHub Sync Workspace
-              <span className="text-[9px] bg-violet-500/15 border border-violet-500/30 text-violet-400 px-1.5 py-0.5 rounded-full font-bold font-mono tracking-wider">
-                SECURE
-              </span>
-            </h1>
-            <p className="text-[10px] text-claude-secondary">
-              Review codebases, audit files with Gemini AI, and directly commit upgrades
-            </p>
-          </div>
-        </div>
 
-        {user && (
-          <div className="flex items-center gap-3 animate-fade-in">
-            <a 
-              href={user.html_url} 
-              target="_blank" 
-              referrerPolicy="no-referrer"
-              className="flex items-center gap-2 bg-[#2E2B25]/40 hover:bg-[#2E2B25] border border-[#2E2B25] p-1.5 pr-3 rounded-xl transition-all cursor-pointer group"
-            >
-              <img 
-                src={user.avatar_url} 
-                alt={user.login} 
-                className="w-6 h-6 rounded-lg object-cover border border-[#403B31]" 
+          {/* Right: user avatar + disconnect */}
+          {user && (
+            <div className="flex items-center gap-2 shrink-0">
+              <img
+                src={user.avatar_url}
+                alt={user.login}
                 referrerPolicy="no-referrer"
+                className="w-7 h-7 rounded-full"
+                style={{ border: '1.5px solid #30363D' }}
               />
-              <div className="text-left leading-none">
-                <span className="block text-xs font-semibold text-[#FCFBF9] pr-1">{user.name || user.login}</span>
-                <span className="text-[9px] text-[#999288] font-mono group-hover:text-amber-500 flex items-center gap-0.5">
-                  @{user.login} <ExternalLink className="w-2 h-2" />
-                </span>
-              </div>
-            </a>
-            
-            <button
-              onClick={handleDisconnect}
-              className="p-2 border border-red-900/30 hover:border-red-900/60 bg-red-950/10 text-red-400 hover:text-red-300 rounded-xl transition-all cursor-pointer text-xs flex items-center gap-1.5 font-semibold"
-              title="Disconnect github sync"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Disconnect</span>
-            </button>
-          </div>
-        )}
-      </div>
+              <button
+                onClick={handleDisconnect}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                style={{ background: 'rgba(248,81,73,0.07)', border: '1px solid rgba(248,81,73,0.2)', color: '#F85149' }}
+                title="Disconnect GitHub"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Disconnect</span>
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Mobile Tab Switcher Navigation */}
