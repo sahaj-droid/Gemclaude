@@ -9,6 +9,7 @@ interface ChatBoxProps {
   messages: Message[];
   onSendMessage: (text: string, attachments: Attachment[]) => void;
   isStreaming: boolean;
+  toolStatus?: string | null;
   onSuggestionClick: (text: string) => void;
   selectedModel: ModelType;
   onModelChange: (model: ModelType) => void;
@@ -27,6 +28,7 @@ export default function ChatBox({
   messages,
   onSendMessage,
   isStreaming,
+  toolStatus,
   onSuggestionClick,
   selectedModel,
   onModelChange,
@@ -740,14 +742,21 @@ export default function ChatBox({
               );
             })}
 
-            {/* SSE typing loader */}
-            {isStreaming && (
+            {/* SSE typing loader & Tool Status */}
+            {(isStreaming || toolStatus) && (
               <div className="flex flex-col items-start" id="ai-typing-loader">
-                <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-claude-bubble-ai text-claude-text border border-claude-border/50 flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-claude-accent animate-bounce" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-claude-accent animate-bounce [animation-delay:0.2s]" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-claude-accent animate-bounce [animation-delay:0.4s]" />
-                </div>
+                {toolStatus ? (
+                  <div className="max-w-[85%] rounded-2xl px-3.5 py-2.5 bg-amber-500/5 text-claude-text border border-amber-500/20 flex items-center gap-2 shadow-sm mb-2">
+                    <Sparkles className="w-4 h-4 text-amber-500 animate-pulse shrink-0" />
+                    <span className="text-sm font-medium text-amber-600/90 italic">{toolStatus}</span>
+                  </div>
+                ) : (
+                  <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-claude-bubble-ai text-claude-text border border-claude-border/50 flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-claude-accent animate-bounce" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-claude-accent animate-bounce [animation-delay:0.2s]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-claude-accent animate-bounce [animation-delay:0.4s]" />
+                  </div>
+                )}
               </div>
             )}
           </div>
