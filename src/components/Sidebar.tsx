@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageSquare, Plus, Trash2, PanelLeftClose, PanelLeft, Bot, MessageCircleCode, Check, Edit2, Settings, TrendingUp, X, Github, Sparkles } from 'lucide-react';
+import { MessageSquare, Plus, Trash2, PanelLeftClose, PanelLeft, Bot, MessageCircleCode, Check, Edit2, Settings, TrendingUp, X, Github, Sparkles, Grid3X3 } from 'lucide-react';
 import { ChatSession, ModelType } from '../types';
 
 interface SidebarProps {
@@ -13,8 +13,8 @@ interface SidebarProps {
   onToggleSidebar: () => void;
   userEmail: string;
   onOpenSettings: () => void;
-  activeTab: 'chat' | 'stocks' | 'github';
-  onChangeTab: (tab: 'chat' | 'stocks' | 'github') => void;
+  activeTab: 'chat' | 'stocks' | 'github' | 'google';
+  onChangeTab: (tab: 'chat' | 'stocks' | 'github' | 'google') => void;
   user: any;
   onSignIn: () => void;
   onSignOut: () => void;
@@ -211,6 +211,24 @@ export default function Sidebar({
           </span>
         </button>
 
+        <button
+          onClick={() => {
+            onChangeTab('google');
+            playSound('/audio/rounded.ogg');
+            handleMobileClose();
+          }}
+          className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl font-medium text-xs transition-all duration-150 cursor-pointer ${
+            activeTab === 'google'
+              ? 'bg-amber-600 text-[#FCFBF9] shadow-sm font-semibold'
+              : 'hover:bg-white/5 text-[#999288] hover:text-[#FCFBF9]'
+          }`}
+        >
+          <Grid3X3 className="w-4 h-4 shrink-0" />
+          <span className="flex-1 text-left">Google Workspace</span>
+          <span className="text-[9px] bg-blue-500/20 border border-blue-500/35 text-blue-400 px-1.5 py-0.5 rounded-full font-bold font-mono tracking-wider">
+            NEW
+          </span>
+        </button>
 
       </div>
       <div className="p-3.5 shrink-0">
