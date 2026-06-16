@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Github, 
-  Search, 
-  Folder, 
-  File, 
-  ArrowLeft, 
-  Sparkles, 
-  Code, 
-  Eye, 
-  Check, 
-  AlertCircle, 
-  RefreshCw, 
-  LogOut, 
+import {
+  Github,
+  Search,
+  Folder,
+  File,
+  ArrowLeft,
+  Sparkles,
+  Code,
+  Eye,
+  Check,
+  AlertCircle,
+  RefreshCw,
+  LogOut,
   ExternalLink,
   ChevronRight,
   GitBranch,
@@ -78,14 +78,14 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
   const [currentPath, setCurrentPath] = useState<string>(''); // empty means root
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
-  
+
   // Active file content & editing
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [fileContent, setFileContent] = useState<string>('');
   const [loadingContent, setLoadingContent] = useState(false);
   const [editingContent, setEditingContent] = useState<string>('');
   const [isEditMode, setIsEditMode] = useState(false);
-  
+
   // Commits & PRs state
   const [commitMessage, setCommitMessage] = useState('');
   const [committing, setCommitting] = useState(false);
@@ -100,10 +100,10 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
   const [reviewing, setReviewing] = useState(false);
   const [customInstructions, setCustomInstructions] = useState('');
   const [useLiteModel, setUseLiteModel] = useState(false);
-  
+
   // Mobile active layout tab configuration
   const [mobileTab, setMobileTab] = useState<'files' | 'editor' | 'review'>('files');
-  
+
   // Feedback
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -111,7 +111,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
     const soundsEnabled = localStorage.getItem('claude_sounds_enabled') !== 'false';
     if (!soundsEnabled) return;
     try {
-      const isHeadless = typeof navigator !== 'undefined' && 
+      const isHeadless = typeof navigator !== 'undefined' &&
         (navigator.webdriver || /HeadlessChrome|Headless|jsdom/i.test(navigator.userAgent));
       if (isHeadless) return;
 
@@ -121,15 +121,15 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
           if (typeof e === 'object' && e && 'preventDefault' in e) {
             (e as any).preventDefault();
           }
-        } catch {}
+        } catch { }
       };
       if (audio.canPlayType && audio.canPlayType('audio/ogg') === '') {
-        return; 
+        return;
       }
       audio.src = soundFile;
       audio.volume = 0.3;
-      audio.play().catch(() => {});
-    } catch (e) {}
+      audio.play().catch(() => { });
+    } catch (e) { }
   };
 
   // 1. Fetch OAuth URL from server
@@ -266,7 +266,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
     setAiReview(null);
     setIsEditMode(false);
     setMobileTab('files');
-    
+
     // Load branches
     fetch(`/api/github/repos/${repo.owner.login}/${repo.name}/branches`, {
       headers: { 'X-GitHub-Token': token || '' }
@@ -293,7 +293,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
     if (!token) return;
     setLoadingFiles(true);
     setErrorMsg(null);
-    
+
     fetch(`/api/github/repos/${repo.owner.login}/${repo.name}/contents?path=${path}&ref=${branch}`, {
       headers: { 'X-GitHub-Token': token }
     })
@@ -354,25 +354,15 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
           setPullRequests([]);
         }
       })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => {
         setLoadingPRs(false);
       });
   };
 
   // Load selected file details
-  const BINARY_EXTENSIONS = new Set(['png','jpg','jpeg','gif','svg','ico','webp','bmp','tiff','pdf','zip','tar','gz','exe','bin','woff','woff2','ttf','eot','mp3','mp4','wav','ogg']);
-
   const handleFileClick = (file: FileItem) => {
     if (!selectedRepo) return;
-    
-    // Skip binary files
-    const ext = file.name.split('.').pop()?.toLowerCase() || '';
-    if (BINARY_EXTENSIONS.has(ext)) {
-      setErrorMsg(`Binary files (${ext.toUpperCase()}) cannot be displayed as text. Select a code or text file.`);
-      return;
-    }
-
     playSound('/audio/rounded.ogg');
     setSelectedFile(file);
     setLoadingContent(true);
@@ -423,7 +413,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
     setMobileTab('review');
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 50000); // 50s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 180000); // 180s (3m) timeout
 
     fetch(`/api/github/repos/${selectedRepo?.owner.login}/${selectedRepo?.name}/review`, {
       method: 'POST',
@@ -449,7 +439,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
       .catch(err => {
         clearTimeout(timeoutId);
         if (err.name === 'AbortError') {
-          setErrorMsg('AI Review timed out after 50s. Try again with a shorter file or use Flash Lite mode.');
+          setErrorMsg('AI Review timed out after 3 minutes. Try again with a shorter file or use Flash Lite mode.');
         } else {
           setErrorMsg(`Gemini Connection Error: ${err.message}`);
         }
@@ -462,11 +452,11 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
   // Automatically parse and extract code from Gemini's markdown response block
   const handleApplyAiOptimizations = () => {
     if (!aiReview) return;
-    
+
     // Look for markdown code blocks matches (e.g. ```typescript ... ``` or ``` ...)
     const regex = /```(?:[a-zA-Z0-9_\-+]+)?\n([\s\S]*?)```/g;
     const matches = [...aiReview.matchAll(regex)];
-    
+
     if (matches && matches.length > 0) {
       // Typically the last or the largest code block is the final refactored code
       let fullCodeBlock = '';
@@ -477,14 +467,14 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
         const sortedByLength = matches.map(m => m[1]).sort((a, b) => b.length - a.length);
         fullCodeBlock = sortedByLength[0];
       }
-      
+
       if (fullCodeBlock.trim()) {
         playSound('/audio/glassy.ogg');
         setEditingContent(fullCodeBlock);
         setIsEditMode(true);
         setCommitMessage(`Apply Gemini recommended optimizations for ${selectedFile?.name}`);
         setMobileTab('editor');
-        
+
         // Alert user
         const toast = document.getElementById('apply-success-toast');
         if (toast) {
@@ -533,16 +523,16 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
       .then(data => {
         playSound('/audio/user_input_end.ogg');
         const newSha = data.content?.sha || selectedFile.sha;
-        
+
         // Update local file properties & contents
         const updatedFile = { ...selectedFile, sha: newSha };
         setSelectedFile(updatedFile);
         setFileContent(editingContent);
-        
+
         setCommitSuccess(`Successfully committed modifications directly into ${selectedBranch}!`);
         setIsEditMode(false);
         setCommitMessage('');
-        
+
         // Reload directories files list to catch fresh hashes
         loadFiles(selectedRepo, selectedBranch, currentPath);
       })
@@ -565,17 +555,17 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
   };
 
   // Filter repositories
-  const filteredRepos = repos.filter(r => 
+  const filteredRepos = repos.filter(r =>
     r.name.toLowerCase().includes(repoSearch.toLowerCase()) ||
     (r.description && r.description.toLowerCase().includes(repoSearch.toLowerCase()))
   );
 
   return (
     <div className="flex-1 flex flex-col h-full bg-claude-bg overflow-hidden select-none" id="github-workspace-root">
-      
+
       {/* Toast Notification */}
-      <div 
-        id="apply-success-toast" 
+      <div
+        id="apply-success-toast"
         className="fixed top-5 right-5 z-50 bg-[#1D1B19] border border-[#F59E0B]/40 text-[#FCFBF9] text-xs px-4 py-3 rounded-xl shadow-2xl transition-opacity duration-300 opacity-0 flex items-center gap-2"
       >
         <Sparkles className="w-4 h-4 text-amber-500 animate-spin" />
@@ -643,11 +633,10 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
               setMobileTab('files');
               playSound('/audio/rounded.ogg');
             }}
-            className={`flex-1 flex flex-col items-center justify-center py-2 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all cursor-pointer ${
-              mobileTab === 'files'
+            className={`flex-1 flex flex-col items-center justify-center py-2 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all cursor-pointer ${mobileTab === 'files'
                 ? 'bg-amber-600/10 text-amber-500 border border-amber-500/20'
                 : 'text-[#999288] border border-transparent hover:text-[#FCFBF9]'
-            }`}
+              }`}
           >
             <Folder className="w-4 h-4 mb-0.5" />
             <span>Files</span>
@@ -658,11 +647,10 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
               setMobileTab('editor');
               playSound('/audio/rounded.ogg');
             }}
-            className={`flex-1 flex flex-col items-center justify-center py-2 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all relative cursor-pointer ${
-              mobileTab === 'editor'
+            className={`flex-1 flex flex-col items-center justify-center py-2 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all relative cursor-pointer ${mobileTab === 'editor'
                 ? 'bg-amber-600/10 text-amber-500 border border-amber-500/20'
                 : 'text-[#999288] border border-transparent hover:text-[#FCFBF9]'
-            }`}
+              }`}
           >
             <FileCode className="w-4 h-4 mb-0.5" />
             <span className="truncate max-w-[85px] text-center text-[10px]">
@@ -678,11 +666,10 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
               setMobileTab('review');
               playSound('/audio/rounded.ogg');
             }}
-            className={`flex-1 flex flex-col items-center justify-center py-2 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all relative cursor-pointer ${
-              mobileTab === 'review'
+            className={`flex-1 flex flex-col items-center justify-center py-2 rounded-xl text-[10px] uppercase font-bold tracking-wider transition-all relative cursor-pointer ${mobileTab === 'review'
                 ? 'bg-amber-600/10 text-amber-500 border border-amber-500/20'
                 : 'text-[#999288] border border-transparent hover:text-[#FCFBF9]'
-            }`}
+              }`}
           >
             <Sparkles className="w-4 h-4 mb-0.5" />
             <span>AI Review</span>
@@ -697,7 +684,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
       {!token ? (
         /* ── REDESIGNED CONNECT SCREEN ── */
         <div className="flex-1 flex flex-col items-center justify-start overflow-y-auto bg-[#0D0D0F] relative">
-          
+
           {/* Back Button Overlay */}
           {onGoBackToChat && (
             <button
@@ -870,30 +857,30 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                   <ArrowLeft className="w-5 h-5" />
                 </button>
               )}
-              
+
               <div className="flex-1">
                 {/* User info row */}
-              {user && (
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2.5">
-                    <img src={user.avatar_url} alt={user.login} referrerPolicy="no-referrer" className="w-8 h-8 rounded-full border-2" style={{ borderColor: '#30363D' }} />
-                    <div>
-                      <p className="text-sm font-bold text-white leading-none">{user.name || user.login}</p>
-                      <p className="text-[11px] mt-0.5" style={{ color: '#8B949E' }}>@{user.login}</p>
+                {user && (
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2.5">
+                      <img src={user.avatar_url} alt={user.login} referrerPolicy="no-referrer" className="w-8 h-8 rounded-full border-2" style={{ borderColor: '#30363D' }} />
+                      <div>
+                        <p className="text-sm font-bold text-white leading-none">{user.name || user.login}</p>
+                        <p className="text-[11px] mt-0.5" style={{ color: '#8B949E' }}>@{user.login}</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={handleDisconnect}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                      style={{ background: 'rgba(248,81,73,0.08)', border: '1px solid rgba(248,81,73,0.2)', color: '#F85149' }}
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      Disconnect
+                    </button>
                   </div>
-                  <button
-                    onClick={handleDisconnect}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                    style={{ background: 'rgba(248,81,73,0.08)', border: '1px solid rgba(248,81,73,0.2)', color: '#F85149' }}
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    Disconnect
-                  </button>
-                </div>
-              )}
-              <h2 className="text-base font-bold text-white">Your Repositories</h2>
-              <p className="text-xs mt-0.5" style={{ color: '#8B949E' }}>Select a repo to browse files and run AI review</p>
+                )}
+                <h2 className="text-base font-bold text-white">Your Repositories</h2>
+                <p className="text-xs mt-0.5" style={{ color: '#8B949E' }}>Select a repo to browse files and run AI review</p>
               </div>
             </div>
           </div>
@@ -978,15 +965,14 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
       ) : (
         /* CONNECTED ACTIVE WORKSPACE - BROWSER & REVIEWER cols */
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden divide-y md:divide-y-0 md:divide-x divide-[#2E2B25]">
-          
+
           {/* LEFT PANEL: FILE DIRECTORY EXPLORER */}
-          <div className={`w-full md:w-80 flex flex-col bg-[#191816]/45 shrink-0 select-none overflow-hidden ${
-            mobileTab === 'files' ? 'flex h-full md:h-full' : 'hidden md:flex md:h-full'
-          }`}>
-            
+          <div className={`w-full md:w-80 flex flex-col bg-[#191816]/45 shrink-0 select-none overflow-hidden ${mobileTab === 'files' ? 'flex h-full md:h-full' : 'hidden md:flex md:h-full'
+            }`}>
+
             {/* Repo / Branch Selector info heading */}
             <div className="p-4 border-b border-[#2E2B25] flex flex-col gap-3">
-              
+
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => setSelectedRepo(null)}
@@ -1030,7 +1016,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
 
             {/* Breadcrumbs Trail */}
             <div className="px-4 py-2 border-b border-[#2E2B25]/40 bg-[#191816]/10 flex items-center gap-1 text-[10px] overflow-x-auto whitespace-nowrap scrollbar-none select-none">
-              <button 
+              <button
                 onClick={() => handleFolderClick('')}
                 className="text-amber-500 hover:text-[#FCFBF9] cursor-pointer"
               >
@@ -1064,16 +1050,15 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                 files.map(f => {
                   const isDir = f.type === 'dir';
                   const isSelected = selectedFile?.path === f.path;
-                  
+
                   return (
                     <button
                       key={f.path}
                       onClick={() => isDir ? handleFolderClick(f.path) : handleFileClick(f)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${
-                        isSelected 
-                          ? 'bg-amber-600/10 border border-amber-500/20 text-amber-500 font-semibold' 
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs transition-colors cursor-pointer ${isSelected
+                          ? 'bg-amber-600/10 border border-amber-500/20 text-amber-500 font-semibold'
                           : 'hover:bg-white/5 text-[#999288] hover:text-[#FCFBF9] border border-transparent'
-                      }`}
+                        }`}
                     >
                       {isDir ? (
                         <Folder className={`w-4 h-4 text-amber-500/80 shrink-0 fill-amber-500/10`} />
@@ -1081,7 +1066,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                         <File className={`w-4 h-4 text-[#8C8375] shrink-0`} />
                       )}
                       <span className="truncate flex-1">{f.name}</span>
-                      
+
                       {isDir && (
                         <ChevronRight className="w-3 h-3 text-[#6B665E] shrink-0" />
                       )}
@@ -1094,10 +1079,9 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
           </div>
 
           {/* RIGHT PANEL: MAIN CODE VISUALIZER / EDITOR / GEMINI INSIGHTS */}
-          <div className={`flex-1 flex flex-col overflow-hidden select-text bg-claude-bg ${
-            mobileTab !== 'files' ? 'flex h-full' : 'hidden md:flex md:h-full'
-          }`}>
-            
+          <div className={`flex-1 flex flex-col overflow-hidden select-text bg-claude-bg ${mobileTab !== 'files' ? 'flex h-full' : 'hidden md:flex md:h-full'
+            }`}>
+
             {loadingContent ? (
               <div className="flex-1 flex flex-col items-center justify-center text-claude-secondary gap-3">
                 <RefreshCw className="w-8 h-8 animate-spin text-amber-500" />
@@ -1109,7 +1093,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                 <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 mb-4 shrink-0">
                   <Sparkles className="w-5 h-5 animate-pulse" />
                 </div>
-                
+
                 <h3 className="text-[#FCFBF9] font-serif font-semibold text-base mb-1.5">
                   AI GitHub Refactoring Terminal
                 </h3>
@@ -1171,10 +1155,10 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                     <span className="text-[10px] uppercase font-bold text-amber-500 tracking-wider block mb-2 font-mono">Open Pull Requests ({pullRequests.length})</span>
                     <div className="space-y-1.5 max-h-[120px] overflow-y-auto scrollbar-none text-[11px]">
                       {pullRequests.map((pr: any) => (
-                        <a 
-                          key={pr.id} 
-                          href={pr.html_url} 
-                          target="_blank" 
+                        <a
+                          key={pr.id}
+                          href={pr.html_url}
+                          target="_blank"
                           referrerPolicy="no-referrer"
                           className="flex items-center justify-between hover:text-amber-400 text-claude-secondary py-1 border-b border-[#2E2B25]/30 last:border-0"
                         >
@@ -1189,7 +1173,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
             ) : (
               /* FILE AND CONTROLS active area */
               <div className="flex-1 flex flex-col overflow-hidden divide-y divide-[#2E2B25]">
-                
+
                 {/* HEADER CONTROLS AREA */}
                 <div className="px-5 py-3.5 bg-[#191816]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
                   <div className="min-w-0">
@@ -1201,7 +1185,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
 
                   {/* Upper Controls button groups */}
                   <div className="flex items-center gap-2 select-none">
-                    
+
                     {/* Mode Selectors */}
                     <div className="flex items-center bg-[#191816] border border-[#2E2B25] rounded-xl p-0.5">
                       <button
@@ -1209,11 +1193,10 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                           setIsEditMode(false);
                           playSound('/audio/rounded.ogg');
                         }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                          !isEditMode 
-                            ? 'bg-amber-600/10 text-amber-500' 
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${!isEditMode
+                            ? 'bg-amber-600/10 text-amber-500'
                             : 'text-[#999288] hover:text-[#FCFBF9]'
-                        }`}
+                          }`}
                       >
                         <Eye className="w-3.5 h-3.5" />
                         <span>VIEW CODE</span>
@@ -1224,11 +1207,10 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                           setIsEditMode(true);
                           playSound('/audio/rounded.ogg');
                         }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                          isEditMode 
-                            ? 'bg-amber-600/10 text-amber-500' 
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${isEditMode
+                            ? 'bg-amber-600/10 text-amber-500'
                             : 'text-[#999288] hover:text-[#FCFBF9]'
-                        }`}
+                          }`}
                       >
                         <Code className="w-3.5 h-3.5" />
                         <span>INTERACTIVE EDIT</span>
@@ -1241,11 +1223,10 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                         setUseLiteModel(!useLiteModel);
                         playSound('/audio/rounded.ogg');
                       }}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer select-none ${
-                        useLiteModel 
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold border transition-all cursor-pointer select-none ${useLiteModel
                           ? 'bg-[#191816]/30 text-[#999288] border-[#2E2B25] hover:text-[#FCFBF9]'
-                          : 'bg-amber-600/10 text-amber-500 border-amber-500/30' 
-                      }`}
+                          : 'bg-amber-600/10 text-amber-500 border-amber-500/30'
+                        }`}
                       title={useLiteModel ? "Fast Mode: Active (Gemini 3.1 Flash-Lite)" : "Standard Mode: Active (Gemini 3.5 Flash)"}
                     >
                       <Brain className={`w-3.5 h-3.5 ${!useLiteModel ? 'animate-pulse text-amber-400' : ''}`} />
@@ -1277,12 +1258,11 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
 
                 {/* VISUAL LAYOUT COLLAPSE COLUMNS GRID */}
                 <div className="flex-grow flex flex-col lg:flex-row overflow-hidden divide-y lg:divide-y-0 lg:divide-x divide-[#2E2B25]">
-                  
+
                   {/* WORKSPACE CODE VIEWER PANEL */}
-                  <div className={`flex-grow flex flex-col p-3 md:p-5 overflow-y-auto select-text custom-scrollbar bg-[#121110] ${
-                    mobileTab === 'editor' ? 'flex h-full' : 'hidden lg:flex lg:h-full'
-                  }`}>
-                    
+                  <div className={`flex-grow flex flex-col p-3 md:p-5 overflow-y-auto select-text custom-scrollbar bg-[#121110] ${mobileTab === 'editor' ? 'flex h-full' : 'hidden lg:flex lg:h-full'
+                    }`}>
+
                     {errorMsg && (
                       <div className="mb-4 p-3 rounded-xl border border-red-900/40 bg-red-910/10 text-red-400 text-xs flex items-start gap-2 select-none">
                         <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -1296,7 +1276,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                           <Check className="w-4 h-4 shrink-0 text-emerald-500 mt-0.5" />
                           <span>{commitSuccess}</span>
                         </div>
-                        <button 
+                        <button
                           onClick={() => setCommitSuccess(null)}
                           className="text-[10px] uppercase font-bold text-emerald-500 hover:text-white cursor-pointer"
                         >
@@ -1306,35 +1286,20 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                     )}
 
                     {!isEditMode ? (
-                      /* VIEW MODE — lightweight plain viewer, no tokenizer crash */
-                      <div className="rounded-xl border overflow-hidden" style={{ borderColor: '#21262D', background: '#0D1117' }}>
-                        {/* File info bar */}
-                        <div className="flex items-center justify-between px-4 py-2 text-[11px] font-mono" style={{ background: '#161B22', borderBottom: '1px solid #21262D' }}>
-                          <span style={{ color: '#8B949E' }}>{selectedFile.name}</span>
-                          <span style={{ color: '#6E7681' }}>{fileContent.split('\n').length} lines · {Math.round(fileContent.length / 1024 * 10) / 10}KB</span>
-                        </div>
-                        {/* Code content — simple pre, zero crash risk */}
-                        <pre
-                          className="p-4 text-xs font-mono leading-relaxed overflow-auto custom-scrollbar"
-                          style={{
-                            color: '#E6EDF3',
-                            maxHeight: '65vh',
-                            whiteSpace: 'pre',
-                            overflowX: 'auto',
-                            tabSize: 2,
-                          }}
-                        >{fileContent}</pre>
+                      /* VIEW MODE: Wrap code output inside premium formatter CodeBlock */
+                      <div className="w-full">
+                        <CodeBlock code={fileContent} language={selectedFile.name.split('.').pop() || 'typescript'} />
                       </div>
                     ) : (
                       /* ACTIVE EDIT MODE: Monospaced Textarea with Commit Form */
                       <form onSubmit={handleCommitSubmit} className="flex-1 flex flex-col gap-4">
-                        
+
                         <div className="relative flex-grow min-h-[300px] flex flex-col rounded-xl border border-[#2E2B25] bg-[#0E0D0C] overflow-hidden select-text select-text">
                           <div className="px-3.5 py-1.5 border-b border-[#2E2B25] bg-[#161514] flex items-center justify-between text-[10px] text-[#FCFBF9]/60 font-mono select-none">
                             <span>REWRITE FILE BODY EDITOR</span>
                             <span>UTF-8 ENCODED DATA</span>
                           </div>
-                          
+
                           <textarea
                             value={editingContent}
                             onChange={(e) => setEditingContent(e.target.value)}
@@ -1347,7 +1312,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                         {/* Commit fields overlay */}
                         <div className="p-4 border border-[#2E2B25] rounded-xl bg-[#191816]/30 flex flex-col gap-3 select-none">
                           <span className="text-[10px] uppercase font-bold text-[#FCFBF9]/60 font-mono block">Commit upgrade directly to branch {selectedBranch}</span>
-                          
+
                           <div className="flex flex-col sm:flex-row gap-2">
                             <input
                               type="text"
@@ -1383,24 +1348,23 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                   </div>
 
                   {/* GEMINI AI FEEDBACK/REVIEW COLUMN */}
-                  <div className={`w-full lg:w-96 flex flex-col shrink-0 overflow-hidden divide-y divide-[#2E2B25] bg-[#191816]/20 ${
-                    mobileTab === 'review' ? 'flex h-full' : 'hidden lg:flex lg:h-full'
-                  }`}>
-                    
+                  <div className={`w-full lg:w-96 flex flex-col shrink-0 overflow-hidden divide-y divide-[#2E2B25] bg-[#191816]/20 ${mobileTab === 'review' ? 'flex h-full' : 'hidden lg:flex lg:h-full'
+                    }`}>
+
                     {/* Header */}
                     <div className="p-4 border-b border-[#2E2B25] bg-[#191816]/40 flex items-center justify-between select-none">
                       <div className="flex items-center gap-1.5">
                         <Sparkles className="w-4 h-4 text-violet-400 fill-violet-400/15" />
                         <span className="text-[#FCFBF9] font-serif font-semibold text-xs tracking-wide">Gemini Code evaluation insights</span>
                       </div>
-                      
-                      {highThinking ? (
-                        <span className="text-[9px] bg-amber-500/15 border border-amber-500/30 text-amber-400 px-2 py-0.5 rounded-full font-bold font-mono tracking-wider flex items-center gap-1">
-                          <Brain className="w-2.5 h-2.5 animate-pulse" />
-                          3.1 PRO (THINKING)
+
+                      {useLiteModel ? (
+                        <span className="text-[9px] bg-zinc-500/10 border border-zinc-500/30 text-zinc-400 px-2 py-0.5 rounded-full font-bold font-mono tracking-wider">
+                          3.1 FLASH LITE
                         </span>
                       ) : (
-                        <span className="text-[9px] bg-violet-500/15 border border-violet-500/30 text-violet-400 px-2 py-0.5 rounded-full font-bold font-mono tracking-wider">
+                        <span className="text-[9px] bg-amber-500/15 border border-amber-500/30 text-amber-400 px-2 py-0.5 rounded-full font-bold font-mono tracking-wider flex items-center gap-1">
+                          <Brain className="w-2.5 h-2.5 animate-pulse" />
                           3.5 FLASH
                         </span>
                       )}
@@ -1418,7 +1382,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                           className="bg-[#121110] text-[#FCFBF9] placeholder-[#6B665E] border border-[#2E2B25] text-[11px] px-2.5 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 flex-grow"
                         />
                         {customInstructions && (
-                          <button 
+                          <button
                             onClick={() => setCustomInstructions('')}
                             className="text-[10px] text-[#999288] hover:text-[#FCFBF9] pr-1.5 uppercase font-bold"
                           >
@@ -1435,7 +1399,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                           <Wand2 className="w-8 h-8 animate-spin text-amber-500 mb-3" />
                           <p className="text-xs font-semibold text-[#FCFBF9] mb-1">Evaluating file with Gemini AI...</p>
                           <p className="text-[10px] text-[#999288] max-w-[180px] leading-relaxed">
-                            {useLiteModel 
+                            {useLiteModel
                               ? "Running lightning-fast review with Gemini 3.1 Flash-Lite... Checking syntax and structural issues."
                               : "Running deep standard review with Gemini 3.5 Flash... Checking for vulnerabilities, logic bugs, and optimal refactoring."}
                           </p>
@@ -1446,7 +1410,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                             <Sparkles className="w-4 h-4 animate-pulse" />
                             <span className="text-[10px] font-bold uppercase font-mono tracking-wider">Awaiting Evaluation</span>
                           </div>
-                          
+
                           <p className="text-xs text-[#999288] leading-relaxed mb-4">
                             You have selected <strong className="text-[#FCFBF9] font-mono">{selectedFile.name}</strong>. Here is how to complete an AI upgrade step-by-step:
                           </p>
@@ -1472,7 +1436,7 @@ export default function GithubWorkspace({ onGoBackToChat }: GithubWorkspaceProps
                         </div>
                       ) : (
                         <div className="space-y-4 animate-fade-in select-text select-text">
-                          
+
                           {/* Apply Optimizations callout */}
                           <div className="p-3 border border-violet-500/25 bg-violet-500/5 rounded-xl text-left select-none">
                             <span className="block font-bold text-[11px] text-[#FCFBF9] mb-1 flex items-center gap-1">
