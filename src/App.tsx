@@ -836,7 +836,7 @@ export default function App() {
             setActiveTab('chat');
             playSound('/audio/rounded.ogg');
           }}
-          googleClientId={import.meta.env.VITE_GOOGLE_CLIENT_ID}
+          googleClientId={(import.meta as any).env?.VITE_GOOGLE_CLIENT_ID}
         />
       )}
 
