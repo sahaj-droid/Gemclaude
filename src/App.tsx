@@ -42,6 +42,7 @@ export default function App() {
   const [activeSessionMessages, setActiveSessionMessages] = useState<Message[]>([]);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [streamingText, setStreamingText] = useState<string>('');
+  const [toolStatus, setToolStatus] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [firestoreError, setFirestoreError] = useState<string | null>(null);
 
@@ -492,6 +493,7 @@ export default function App() {
     }
 
     setIsStreaming(true);
+    setToolStatus(null);
     playSound('/audio/user_input_end.ogg');
 
     // Append empty AI message placeholder
@@ -622,6 +624,10 @@ export default function App() {
                       )
                     );
                   }
+                } else if (parsed.tool_status) {
+                  setToolStatus(parsed.tool_status);
+                } else if (parsed.tool_completed) {
+                  setToolStatus(null);
                 } else if (parsed.error) {
                   streamError = new Error(parsed.error);
                 }
@@ -635,6 +641,8 @@ export default function App() {
           }
         }
       }
+
+      setToolStatus(null);
 
       if (streamError) {
         throw streamError;
@@ -798,6 +806,7 @@ export default function App() {
           messages={activeSession ? activeSession.messages : []}
           onSendMessage={onSendMessage}
           isStreaming={isStreaming}
+          toolStatus={toolStatus}
           onSuggestionClick={handleSuggestionClick}
           selectedModel={activeSession ? activeSession.model : 'gemini-3.5-flash'}
           onModelChange={handleModelChangeOnActiveSession}
